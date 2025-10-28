@@ -19,6 +19,15 @@ const metadataResponse = {
       variants: ["regular", "italic", "500", "700italic"]
     },
     {
+      family: "Multi Axis",
+      variants: ["regular", "italic"],
+      axes: [
+        { tag: "opsz", min: 14, max: 32 },
+        { tag: "wght", min: 100, max: 900, step: 100 },
+        { tag: "ital", start: 0, end: 1, step: 1 }
+      ]
+    },
+    {
       family: "Fallback",
       fonts: [
         { fontStyle: "normal", fontWeight: "400" },
@@ -147,6 +156,23 @@ test("buildFamilyQuery builds ital axis query when includeAllVariants is true", 
   ]);
 });
 
+test("buildFamilyQuery adds additional axes when metadata exposes them", async () => {
+  const { query, variants } = await buildFamilyQuery(
+    "Multi Axis",
+    [],
+    {
+      includeAllVariants: true,
+      metadataFetcher
+    }
+  );
+
+  assert.equal(query, "family=Multi%20Axis:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900");
+  assert.deepEqual(variants, [
+    { weight: 400, italic: false },
+    { weight: 400, italic: true }
+  ]);
+});
+
 test("buildFamilyQuery compacts axis ranges when metadata only exposes axes", async () => {
   const { query, variants } = await buildFamilyQuery(
     "Variable Family",
@@ -174,10 +200,21 @@ test("formatVariantSummary and buildFileName produce expected strings", () => {
     { weight: 400, italic: true },
     { weight: 700, italic: false }
   ]);
-  assert.equal(summary, "400, 400i, 700");
+  assert.equal(summary, "400, 700, 400i");
 
   const fileName = buildFileName("roboto", 400, true, "woff2");
   assert.equal(fileName, "roboto-400-italic.woff2");
+});
+
+test("formatVariantSummary condenses large sequential ranges", () => {
+  const variants = [];
+  for (let weight = 100; weight <= 900; weight += 100) {
+    variants.push({ weight, italic: false });
+    variants.push({ weight, italic: true });
+  }
+
+  const summary = formatVariantSummary(variants);
+  assert.equal(summary, "100..900, 100..900i");
 });
 
 test("format maps expose expected extensions", () => {
