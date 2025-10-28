@@ -5,7 +5,7 @@ Script/CLI en Node.js para descargar masivamente fuentes de Google Fonts, renomb
 ## 🚀 Características
 
 - Descarga múltiples familias y pesos de Google Fonts en una sola ejecución.
-- Renombra automáticamente los archivos siguiendo el patrón `<familia>-<peso>.ttf`.
+- Renombra automáticamente los archivos siguiendo el patrón `<familia>-<peso>.<ext>` (según el formato elegido).
 - Guarda cada familia en su propia carpeta dentro de un directorio de salida.
 - Genera (opcionalmente) un archivo TypeScript con las fuentes descargadas, útil para selectores o componentes dinámicos.
 - Se puede usar tanto mediante un script configurado por archivo (`config/fonts.config.js`) como con la CLI `mass-fonts`.
@@ -13,7 +13,7 @@ Script/CLI en Node.js para descargar masivamente fuentes de Google Fonts, renomb
 ## 📦 Requisitos previos
 
 - [Node.js](https://nodejs.org/) 18 o superior (el proyecto usa módulos ES).
-- Acceso a internet para consultar Google Fonts y descargar los archivos `.ttf`.
+- Acceso a internet para consultar Google Fonts y descargar los archivos `.woff2`, `.woff` o `.ttf`.
 
 ## 🛠 Instalación
 
@@ -26,6 +26,7 @@ npm install
 
 1. Edita `config/fonts.config.js` para definir:
    - `fonts`: lista de familias y pesos a descargar.
+   - `formats`: formatos globales a descargar (`woff2`, `woff`, `ttf`). Si no indicas nada, se usarán `['woff2']`.
    - `subsets`: subconjuntos de caracteres (por defecto `latin`).
    - `outputDir`: carpeta de salida donde se guardarán las fuentes.
    - `generateOptionsFile`: `true` para generar `font-options.ts`.
@@ -33,8 +34,9 @@ npm install
 
    ```js
    export default {
+     formats: ["woff2"],
      fonts: [
-       { name: "Roboto", weights: [400, 700] },
+       { name: "Roboto", weights: [400, 700], formats: ["woff2", "woff"] },
        { name: "Poppins", weights: [400, 600, 700] }
      ],
      subsets: ["latin"],
@@ -43,6 +45,8 @@ npm install
      optionsFilePath: "output/font-options.ts"
    };
    ```
+
+   > Si una familia necesita formatos distintos, declara `formats` dentro de su objeto. Ese array reemplaza al valor global (`formats` en la raíz); si lo omites se usará el predeterminado.
 
 2. Ejecuta el script:
 
@@ -60,10 +64,10 @@ La CLI permite lanzar descargas ad hoc sin tocar la configuración.
 
 ```bash
 # Opción 1: usando npm (recomendado durante el desarrollo)
-npm run cli -- --fonts "Roboto:400,700;Poppins:400" --output "output/fonts" --ts "output/font-options.ts" --subset latin
+npm run cli -- --fonts "Roboto:400,700;Poppins:400" --output "output/fonts" --ts "output/font-options.ts" --subset latin --formats woff2,woff
 
 # Opción 2: usando npx directamente
-npx mass-fonts --fonts "Inter:400,500,700" --output "output/fonts" --subset latin-ext
+npx mass-fonts --fonts "Inter:400,500,700" --output "output/fonts" --subset latin-ext --formats woff2
 ```
 
 ### Parámetros disponibles
@@ -74,6 +78,7 @@ npx mass-fonts --fonts "Inter:400,500,700" --output "output/fonts" --subset lati
 | `-o, --output <dir>` | Carpeta de salida raíz. | `output/fonts` |
 | `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | no genera archivo |
 | `--subset <subset>` | Subconjunto de caracteres (`latin`, `latin-ext`, `cyrillic`, etc.). | `latin` |
+| `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `woff2` |
 
 > **Nota:** Cada familia se almacenará dentro de una subcarpeta con el nombre en minúsculas y espacios reemplazados por guiones (`poppins`, `open-sans`, etc.).
 
@@ -85,12 +90,12 @@ Después de ejecutar una descarga, el directorio de salida tendrá este aspecto:
 output/
 └── fonts/
     ├── roboto/
-    │   ├── roboto-400.ttf
-    │   └── roboto-700.ttf
+    │   ├── roboto-400.woff2
+    │   └── roboto-700.woff
     └── poppins/
-        ├── poppins-400.ttf
-        ├── poppins-600.ttf
-        └── poppins-700.ttf
+        ├── poppins-400.woff2
+        ├── poppins-600.woff2
+        └── poppins-700.woff2
 ```
 
 Si activaste la generación del archivo TypeScript, se creará también:
@@ -101,12 +106,12 @@ export const FONT_OPTIONS = [
   {
     "name": "Roboto",
     "folder": "roboto",
-    "files": ["roboto-400.ttf", "roboto-700.ttf"]
+    "files": ["roboto-400.woff2", "roboto-700.woff"]
   },
   {
     "name": "Poppins",
     "folder": "poppins",
-    "files": ["poppins-400.ttf", "poppins-600.ttf", "poppins-700.ttf"]
+    "files": ["poppins-400.woff2", "poppins-600.woff2", "poppins-700.woff2"]
   }
 ];
 ```
@@ -114,7 +119,7 @@ export const FONT_OPTIONS = [
 ## 🔧 Personalización adicional
 
 - **Añadir más subconjuntos:** Agrega valores en `subsets` (ej. `['latin', 'latin-ext']`).
-- **Cambiar formato de archivo:** Por defecto solo se guardan `.ttf`. Si necesitas `woff`/`woff2`, modifica la validación `if (format !== "truetype") continue;` en los scripts.
+- **Cambiar formato de archivo:** Controla los formatos desde la propiedad `formats` del config (global o por familia) o la opción `--formats` en la CLI. Los valores válidos son `woff2`, `woff` y `ttf`.
 - **Evitar la generación de TypeScript:** Pon `generateOptionsFile: false` en la configuración o no pases `--ts` en la CLI.
 
 ## 🧪 Consejos y resolución de problemas
@@ -129,7 +134,7 @@ export const FONT_OPTIONS = [
 - Invoca el script desde npm (`npm run download`) dentro de tu pipeline (GitHub Actions, GitLab CI, etc.).
 - Usa la CLI con los parámetros que necesites, por ejemplo:
   ```bash
-  npx mass-fonts --fonts "Inter:400,500" --output "build/fonts" --subset latin --ts "src/font-options.ts"
+  npx mass-fonts --fonts "Inter:400,500" --output "build/fonts" --subset latin --ts "src/font-options.ts" --formats woff2
   ```
 - Si deseas usar la lógica desde otro archivo Node.js, puedes copiar/adaptar la función `downloadFonts` que se define en `scripts/download-fonts.js` o refactorizarla para exportarla según tus necesidades.
 

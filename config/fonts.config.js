@@ -3,14 +3,15 @@
  *
  * - Mantén solo los campos `name` y `weights` si buscas una configuración mínima.
  * - El resto de propiedades son ejemplos opcionales para documentar lo que podrías querer anotar
- *   (pares sugeridos, formatos locales, subconjuntos particulares, etc.).
- * - El script oficial únicamente usa `fonts`, `subsets`, `outputDir`, `generateOptionsFile`
- *   y `optionsFilePath`, pero dejamos un montón de ideas para que puedas adaptarlo
+ *   (pares sugeridos, formatos preferidos, subconjuntos particulares, etc.).
+ * - El script oficial únicamente usa `fonts`, `formats`, `subsets`, `outputDir`,
+ *   `generateOptionsFile` y `optionsFilePath`, pero dejamos un montón de ideas para que puedas adaptarlo
  *   rápidamente a tus necesidades.
  */
 
 const OUTPUT_ROOT = "output/fonts"; // Directorio base de descarga
 const OPTIONS_FILE = "output/font-options.ts"; // Archivo TS generado automáticamente
+const DEFAULT_FORMATS = ["woff2"]; // Formatos preferidos si no defines otros
 
 const SHARED_NOTES = `
 Puedes eliminar cualquiera de estas familias o duplicarlas para crear presets específicos
@@ -21,6 +22,12 @@ extiende los scripts según tu preferencia.
 
 export default {
   /**
+   * Formatos que se descargarán por defecto para cada familia.
+   * Puedes sobrescribirlos en cada entrada individual usando la propiedad `formats`.
+   */
+  formats: DEFAULT_FORMATS,
+
+  /**
    * Listado de familias a descargar. El script solo lee `name` y `weights`,
    * pero aquí dejamos ejemplos de metadatos útiles para documentar decisiones.
    */
@@ -28,25 +35,19 @@ export default {
     {
       name: "Roboto",
       weights: [100, 300, 400, 500, 700, 900],
+      formats: ["woff2", "woff"],
       category: "Sans-serif versátil",
       display: "swap",
       subsetsHint: ["latin", "latin-ext"],
-      localExamples: {
-        woff2: "public/fonts/roboto/Roboto-Regular.woff2",
-        woff: "public/fonts/roboto/Roboto-Regular.woff"
-      },
       recommendedPairs: ["Roboto Slab", "Merriweather"],
       comments: "Ideal para interfaces y proyectos con alto soporte lingüístico."
     },
     {
       name: "Poppins",
       weights: [100, 200, 300, 400, 500, 600, 700, 800, 900],
+      formats: ["woff2", "woff"],
       category: "Geometric sans",
       display: "swap",
-      localExamples: {
-        woff2: "public/fonts/poppins/Poppins-Regular.woff2",
-        woff: "public/fonts/poppins/Poppins-Regular.woff"
-      },
       recommendedPairs: ["Playfair Display", "Roboto"],
       comments: "Buena para titulares ligeros y componentes UI con personalidad."
     },
