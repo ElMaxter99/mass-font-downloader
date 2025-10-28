@@ -1,0 +1,53 @@
+# =========================================
+# ⚙️  Node.js / Mass Font Downloader
+# =========================================
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Output / build directories
+dist/
+build/
+output/
+public/
+tmp/
+temp/
+
+# Font outputs (no subir archivos pesados)
+**/fonts/
+!config/fonts.config.js  # except configuration file
+
+# Generated TypeScript files
+**/font-options.ts
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Optional: OS / Git metadata
+*.bak
+*.tmp
+*.old
+.gitignore~
