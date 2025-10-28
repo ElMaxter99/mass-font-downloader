@@ -26,6 +26,8 @@ npm install
 
 1. Edita `config/fonts.config.js` para definir:
    - `fonts`: lista de familias y pesos a descargar.
+     - Usa un array de pesos (`weights: [400, 700]`) para controlar manualmente qué variantes quieres.
+     - Establece `weights: "all"`, `weights: "*"` o la bandera `downloadAllVariants: true` para descargar **todas** las variantes disponibles (incluidas las itálicas cuando existan).
    - `formats`: formatos globales a descargar (`woff2`, `woff`, `ttf`). Si no indicas nada, se usarán `['woff2']`.
    - `subsets`: subconjuntos de caracteres (por defecto `latin`).
    - `outputDir`: carpeta de salida donde se guardarán las fuentes.
@@ -33,17 +35,19 @@ npm install
    - `optionsFilePath`: ruta donde se escribirá ese archivo TypeScript.
 
    ```js
-   export default {
-     formats: ["woff2"],
-     fonts: [
-       { name: "Roboto", weights: [400, 700], formats: ["woff2", "woff"] },
-       { name: "Poppins", weights: [400, 600, 700] }
-     ],
-     subsets: ["latin"],
-     outputDir: "output/fonts",
-     generateOptionsFile: true,
-     optionsFilePath: "output/font-options.ts"
-   };
+  export default {
+    formats: ["woff2"],
+    fonts: [
+      { name: "Roboto", weights: [400, 700], formats: ["woff2", "woff"] },
+      { name: "Poppins", weights: [400, 600, 700] },
+      { name: "Inter", weights: "all" }, // todas las variantes disponibles
+      { name: "Playfair Display", downloadAllVariants: true } // bandera alternativa
+    ],
+    subsets: ["latin"],
+    outputDir: "output/fonts",
+    generateOptionsFile: true,
+    optionsFilePath: "output/font-options.ts"
+  };
    ```
 
    > Si una familia necesita formatos distintos, declara `formats` dentro de su objeto. Ese array reemplaza al valor global (`formats` en la raíz); si lo omites se usará el predeterminado.
@@ -68,6 +72,9 @@ npm run cli -- --fonts "Roboto:400,700;Poppins:400" --output "output/fonts" --ts
 
 # Opción 2: usando npx directamente
 npx mass-fonts --fonts "Inter:400,500,700" --output "output/fonts" --subset latin-ext --formats woff2
+
+# Descargar todas las variantes de una familia (incluyendo itálicas si existen)
+npx mass-fonts --fonts "Roboto:all" --all --output "output/fonts"
 ```
 
 ### Parámetros disponibles
@@ -79,8 +86,11 @@ npx mass-fonts --fonts "Inter:400,500,700" --output "output/fonts" --subset lati
 | `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | no genera archivo |
 | `--subset <subset>` | Subconjunto de caracteres (`latin`, `latin-ext`, `cyrillic`, etc.). | `latin` |
 | `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `woff2` |
+| `--all` | Descarga todas las variantes disponibles (combina pesos e itálicas automáticamente). | `false` |
 
 > **Nota:** Cada familia se almacenará dentro de una subcarpeta con el nombre en minúsculas y espacios reemplazados por guiones (`poppins`, `open-sans`, etc.).
+
+> También puedes indicar `all` o `*` directamente en la definición de cada familia (`--fonts "Roboto:all"`) para forzar la descarga completa sin usar la bandera global.
 
 ## 📁 Estructura de salida
 
@@ -91,7 +101,8 @@ output/
 └── fonts/
     ├── roboto/
     │   ├── roboto-400.woff2
-    │   └── roboto-700.woff
+    │   ├── roboto-400-italic.woff2
+    │   └── roboto-700.woff2
     └── poppins/
         ├── poppins-400.woff2
         ├── poppins-600.woff2
@@ -106,7 +117,7 @@ export const FONT_OPTIONS = [
   {
     "name": "Roboto",
     "folder": "roboto",
-    "files": ["roboto-400.woff2", "roboto-700.woff"]
+    "files": ["roboto-400.woff2", "roboto-400-italic.woff2", "roboto-700.woff2"]
   },
   {
     "name": "Poppins",
@@ -120,6 +131,7 @@ export const FONT_OPTIONS = [
 
 - **Añadir más subconjuntos:** Agrega valores en `subsets` (ej. `['latin', 'latin-ext']`).
 - **Cambiar formato de archivo:** Controla los formatos desde la propiedad `formats` del config (global o por familia) o la opción `--formats` en la CLI. Los valores válidos son `woff2`, `woff` y `ttf`.
+- **Descargar todo el set de variantes:** Usa `weights: "all"`, `downloadAllVariants: true` o la opción `--all` para obtener todas las combinaciones de peso/estilo. Los archivos itálicos se renombran como `<familia>-<peso>-italic.<ext>`.
 - **Evitar la generación de TypeScript:** Pon `generateOptionsFile: false` en la configuración o no pases `--ts` en la CLI.
 
 ## 🧪 Consejos y resolución de problemas
