@@ -17,7 +17,7 @@ async function getFontCss(name, weights, subsets) {
 }
 
 async function downloadFonts() {
-  console.log("📦 Descargando fuentes desde Google Fonts...\n");
+  console.log("Descargando fuentes desde Google Fonts...\n");
 
   await fs.ensureDir(outputDir);
   const fontOptions = [];
@@ -29,7 +29,7 @@ async function downloadFonts() {
     const matches = [...css.matchAll(/url\((https:\/\/[^)]+)\).*?format\('(truetype|woff2|woff)'\)/g)];
 
     if (!matches.length) {
-      console.warn(`⚠️ No se encontraron URLs para ${name}`);
+      console.warn(`No se encontraron URLs para ${name}`);
       continue;
     }
 
@@ -60,14 +60,14 @@ async function downloadFonts() {
   }
 
   if (generateOptionsFile) {
-    const ts = `// ⚡️ Generated automatically by mass-font-downloader
+    const ts = `// Generated automatically by mass-font-downloader
 export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
 `;
     await fs.outputFile(optionsFilePath, ts);
-    console.log(`\n✅ Archivo de opciones generado: ${optionsFilePath}`);
+    console.log(`\nArchivo de opciones generado: ${optionsFilePath}`);
   }
 
-  console.log(`\n🎉 Descarga completada. Archivos guardados en ${outputDir}`);
+  console.log(`\nDescarga completada. Archivos guardados en ${outputDir}`);
 }
 
-downloadFonts().catch((err) => console.error("❌ Error:", err));
+downloadFonts().catch((err) => console.error("Error:", err));

@@ -16,7 +16,7 @@ program
 
 const options = program.opts();
 if (!options.fonts) {
-  console.error("❌ Debes especificar al menos una fuente con --fonts");
+  console.error("Debes especificar al menos una fuente con --fonts");
   process.exit(1);
 }
 
@@ -46,7 +46,7 @@ async function downloadFonts(fonts, outputDir, subset, tsFile) {
   await fs.ensureDir(outputDir);
   const fontOptions = [];
 
-  console.log("📦 Descargando fuentes desde Google Fonts...\n");
+  console.log("Descargando fuentes desde Google Fonts...\n");
 
   for (const { name, weights } of fonts) {
     console.log(`→ ${name} (${weights.join(", ")})`);
@@ -54,7 +54,7 @@ async function downloadFonts(fonts, outputDir, subset, tsFile) {
 
     const matches = [...css.matchAll(/url\((https:\/\/[^)]+)\).*?format\('(truetype|woff2|woff)'\)/g)];
     if (!matches.length) {
-      console.warn(`⚠️ No se encontraron URLs para ${name}`);
+      console.warn(`No se encontraron URLs para ${name}`);
       continue;
     }
 
@@ -84,17 +84,17 @@ async function downloadFonts(fonts, outputDir, subset, tsFile) {
   }
 
   if (tsFile) {
-    const ts = `// ⚡️ Generated automatically by mass-fonts CLI
+    const ts = `// Generated automatically by mass-fonts CLI
 export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
 `;
     await fs.outputFile(tsFile, ts);
-    console.log(`\n✅ Archivo de opciones generado: ${tsFile}`);
+    console.log(`\nArchivo de opciones generado: ${tsFile}`);
   }
 
-  console.log(`\n🎉 Descarga completada. Archivos guardados en ${outputDir}`);
+  console.log(`\nDescarga completada. Archivos guardados en ${outputDir}`);
 }
 
 const fonts = parseFonts(options.fonts);
 downloadFonts(fonts, options.output, options.subset, options.ts).catch((err) => {
-  console.error("❌ Error:", err.message);
+  console.error("Error:", err.message);
 });
