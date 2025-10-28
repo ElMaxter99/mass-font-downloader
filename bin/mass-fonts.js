@@ -3,6 +3,33 @@ import fs from "fs-extra";
 import axios from "axios";
 import { Command } from "commander";
 
+const FORMAT_ALIASES = {
+  woff2: "woff2",
+  woff: "woff",
+  truetype: "truetype",
+  ttf: "truetype"
+};
+
+const FORMAT_EXTENSIONS = {
+  woff2: "woff2",
+  woff: "woff",
+  truetype: "ttf"
+};
+
+const FALLBACK_FORMATS = ["woff2"];
+
+function normalizeFormats(formats) {
+  if (!formats) return [...FALLBACK_FORMATS];
+  const raw = Array.isArray(formats) ? formats : formats.split(",");
+  const canonical = raw
+    .map((format) => FORMAT_ALIASES[format.trim().toLowerCase()])
+    .filter(Boolean);
+  if (canonical.length) {
+    return [...new Set(canonical)];
+  }
+  return [...FALLBACK_FORMATS];
+}
+
 const program = new Command();
 
 program
@@ -12,6 +39,7 @@ program
   .option("-o, --output <dir>", "Carpeta de salida", "output/fonts")
   .option("--ts <file>", "Ruta del archivo font-options.ts (opcional)")
   .option("--subset <subset>", "Subconjunto de caracteres (latin, latin-ext...)", "latin")
+  .option("--formats <formats>", "Lista separada por comas de formatos (woff2, woff, ttf)")
   .parse(process.argv);
 
 const options = program.opts();
@@ -42,14 +70,14 @@ async function getFontCss(name, weights, subset) {
   return data;
 }
 
-async function downloadFonts(fonts, outputDir, subset, tsFile) {
+async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
   await fs.ensureDir(outputDir);
   const fontOptions = [];
 
   console.log("Descargando fuentes desde Google Fonts...\n");
 
   for (const { name, weights } of fonts) {
-    console.log(`→ ${name} (${weights.join(", ")})`);
+    console.log(`→ ${name} (${weights.join(", ")}) → formatos: ${formats.map((format) => FORMAT_EXTENSIONS[format] ?? format).join(", ")}`);
     const css = await getFontCss(name, weights, subset);
 
     const matches = [...css.matchAll(/url\((https:\/\/[^)]+)\).*?format\('(truetype|woff2|woff)'\)/g)];
@@ -66,13 +94,17 @@ async function downloadFonts(fonts, outputDir, subset, tsFile) {
 
     for (const match of matches) {
       const [_, url, format] = match;
-      if (format !== "truetype") continue; // solo TTF
+      const canonicalFormat = FORMAT_ALIASES[format.toLowerCase()];
+      if (!canonicalFormat || !formats.includes(canonicalFormat)) continue;
       const weightMatch = url.match(/wght@(\d+)/);
       const weight = weightMatch ? weightMatch[1] : "400";
 
-      const fileName = `${folder}-${weight}.ttf`;
+      const extension = FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat;
+      const fileName = `${folder}-${weight}.${extension}`;
       const filePath = `${fontDir}/${fileName}`;
-      fileNames.push(fileName);
+      if (!fileNames.includes(fileName)) {
+        fileNames.push(fileName);
+      }
 
       if (!fs.existsSync(filePath)) {
         const res = await axios.get(url, { responseType: "arraybuffer" });
@@ -95,6 +127,7 @@ export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
 }
 
 const fonts = parseFonts(options.fonts);
-downloadFonts(fonts, options.output, options.subset, options.ts).catch((err) => {
+const formats = normalizeFormats(options.formats);
+downloadFonts(fonts, options.output, options.subset, options.ts, formats).catch((err) => {
   console.error("Error:", err.message);
 });
