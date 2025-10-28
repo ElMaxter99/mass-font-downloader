@@ -13,13 +13,6 @@ const OUTPUT_ROOT = "output/fonts"; // Directorio base de descarga
 const OPTIONS_FILE = "output/font-options.ts"; // Archivo TS generado automáticamente
 const DEFAULT_FORMATS = ["woff2"]; // Formatos preferidos si no defines otros
 
-const SHARED_NOTES = `
-Puedes eliminar cualquiera de estas familias o duplicarlas para crear presets específicos
-según tu proyecto. Si necesitas más control (por ejemplo, manejar variantes itálicas,
-formatos adicionales o subconjuntos específicos), usa estas propiedades como guía y
-extiende los scripts según tu preferencia.
-`;
-
 export default {
   /**
    * Formatos que se descargarán por defecto para cada familia.
@@ -282,8 +275,4 @@ export default {
    */
   optionsFilePath: OPTIONS_FILE,
 
-  /**
-   * Notas adicionales que puedes consultar mientras tuneas la configuración.
-   */
-  documentation: SHARED_NOTES
 };
