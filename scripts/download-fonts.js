@@ -12,6 +12,7 @@ import {
   formatVariantSummary,
   buildFileName
 } from "../lib/font-utils.js";
+import { createDebugLogger } from "../lib/debug.js";
 
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
@@ -27,6 +28,8 @@ const DEFAULT_HEADERS = {
   Referer: "https://fonts.googleapis.com/",
   Origin: "https://fonts.googleapis.com",
 };
+
+const debug = createDebugLogger(Boolean(process.env.MASS_FONTS_DEBUG), "script");
 
 function shouldRetryWithoutProxy(error) {
   if (!error) return false;
@@ -129,13 +132,25 @@ async function downloadFonts() {
       includeAllVariants: downloadAll,
       metadataFetcher
     });
+    debug.log(`Consulta generada para ${name}: ${query}`);
+    debug.log(
+      `Variantes resueltas (${variants.length}): ${variants
+        .map((variant) => `${variant.weight}${variant.italic ? "i" : ""}`)
+        .join(", ")}`
+    );
     const variantSummary = formatVariantSummary(variants);
     console.log(
       `→ ${name} (${downloadAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats.join(", ")}`
     );
     const css = await getFontCss(query, subsets);
+    debug.log(`${name}: CSS recibido (${css.length} caracteres)`);
 
     const sources = extractSourcesFromCss(css);
+    debug.log(
+      `${name}: Fuentes detectadas (${sources.length}): ${sources
+        .map((source) => `${source.format}:${source.weight}${source.italic ? "i" : ""}`)
+        .join(", ")}`
+    );
 
     if (!sources.length) {
       console.warn(`No se encontraron URLs para ${name}`);
@@ -146,17 +161,38 @@ async function downloadFonts() {
     const fontDir = `${outputDir}/${folder}`;
     await fs.ensureDir(fontDir);
 
+    const preparedSources = sources.map((source) => {
+      const canonicalFormat = FORMAT_ALIASES[source.format];
+      const extension = canonicalFormat ? FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat : null;
+      return { ...source, canonicalFormat, extension };
+    });
+
+    const matchedSources = preparedSources.filter((source) => {
+      if (!source.canonicalFormat) {
+        debug.log(
+          `${name}: se descarta URL por formato desconocido (${source.format}) → ${source.url}`
+        );
+        return false;
+      }
+      if (!selectedFormats.includes(source.canonicalFormat)) {
+        debug.log(
+          `${name}: se descarta URL por no coincidir con los formatos solicitados (${source.canonicalFormat}) → ${source.url}`
+        );
+        return false;
+      }
+      return true;
+    });
+
+    debug.log(`${name}: Fuentes tras filtrar formatos (${matchedSources.length})`);
+
     const fileNames = [];
 
-    for (const source of sources) {
-      const canonicalFormat = FORMAT_ALIASES[source.format];
-      if (!canonicalFormat || !selectedFormats.includes(canonicalFormat)) continue;
-
-      const extension = FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat;
-      const fileName = buildFileName(folder, source.weight, source.italic, extension);
+    for (const source of matchedSources) {
+      const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
       const filePath = `${fontDir}/${fileName}`;
 
       if (!fs.existsSync(filePath)) {
+        debug.log(`${name}: descargando ${source.url} → ${fileName}`);
         const res = await fetchWithProxyFallback(source.url, {
           responseType: "arraybuffer",
           headers: {
@@ -165,12 +201,16 @@ async function downloadFonts() {
           },
         });
         await fs.writeFile(filePath, res.data);
+      } else {
+        debug.log(`${name}: se reutiliza archivo existente ${fileName}`);
       }
 
       if (!fileNames.includes(fileName)) {
         fileNames.push(fileName);
       }
     }
+
+    debug.log(`${name}: Archivos generados (${fileNames.length}): ${fileNames.join(", ")}`);
 
     fontOptions.push({ name, folder, files: fileNames });
   }

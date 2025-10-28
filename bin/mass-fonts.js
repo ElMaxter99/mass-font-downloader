@@ -13,6 +13,7 @@ import {
   formatVariantSummary,
   buildFileName
 } from "../lib/font-utils.js";
+import { createDebugLogger } from "../lib/debug.js";
 
 const program = new Command();
 
@@ -25,6 +26,7 @@ program
   .option("--subset <subset>", "Subconjunto de caracteres (latin, latin-ext...)", "latin")
   .option("--formats <formats>", "Lista separada por comas de formatos (woff2, woff, ttf)")
   .option("--all", "Descargar todas las variantes disponibles de cada familia")
+  .option("--debug", "Muestra información detallada de depuración")
   .parse(process.argv);
 
 const options = program.opts();
@@ -61,7 +63,7 @@ async function getFontCss(familyQuery, subset) {
   return data;
 }
 
-async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
+async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
   await fs.ensureDir(outputDir);
   const fontOptions = [];
 
@@ -85,12 +87,24 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
       includeAllVariants: includeAll,
       metadataFetcher
     });
+    debug.log(`Consulta generada para ${name}: ${query}`);
+    debug.log(
+      `Variantes resueltas (${variants.length}): ${variants
+        .map((variant) => `${variant.weight}${variant.italic ? "i" : ""}`)
+        .join(", ")}`
+    );
     const variantSummary = formatVariantSummary(variants);
     const displayFormats = formats.map((format) => FORMAT_EXTENSIONS[format] ?? format).join(", ");
     console.log(`→ ${name} (${includeAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats}`);
 
     const css = await getFontCss(query, subset);
+    debug.log(`${name}: CSS recibido (${css.length} caracteres)`);
     const sources = extractSourcesFromCss(css);
+    debug.log(
+      `${name}: Fuentes detectadas (${sources.length}): ${sources
+        .map((source) => `${source.format}:${source.weight}${source.italic ? "i" : ""}`)
+        .join(", ")}`
+    );
     if (!sources.length) {
       console.warn(`No se encontraron URLs para ${name}`);
       continue;
@@ -100,24 +114,49 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
     const fontDir = `${outputDir}/${folder}`;
     await fs.ensureDir(fontDir);
 
+    const preparedSources = sources.map((source) => {
+      const canonicalFormat = FORMAT_ALIASES[source.format];
+      const extension = canonicalFormat ? FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat : null;
+      return { ...source, canonicalFormat, extension };
+    });
+
+    const matchedSources = preparedSources.filter((source) => {
+      if (!source.canonicalFormat) {
+        debug.log(
+          `${name}: se descarta URL por formato desconocido (${source.format}) → ${source.url}`
+        );
+        return false;
+      }
+      if (!formats.includes(source.canonicalFormat)) {
+        debug.log(
+          `${name}: se descarta URL por no coincidir con los formatos solicitados (${source.canonicalFormat}) → ${source.url}`
+        );
+        return false;
+      }
+      return true;
+    });
+
+    debug.log(`${name}: Fuentes tras filtrar formatos (${matchedSources.length})`);
+
     const fileNames = [];
 
-    for (const source of sources) {
-      const canonicalFormat = FORMAT_ALIASES[source.format];
-      if (!canonicalFormat || !formats.includes(canonicalFormat)) continue;
-
-      const extension = FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat;
-      const fileName = buildFileName(folder, source.weight, source.italic, extension);
+    for (const source of matchedSources) {
+      const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
       const filePath = `${fontDir}/${fileName}`;
       if (!fileNames.includes(fileName)) {
         fileNames.push(fileName);
       }
 
       if (!fs.existsSync(filePath)) {
+        debug.log(`${name}: descargando ${source.url} → ${fileName}`);
         const res = await axios.get(source.url, { responseType: "arraybuffer" });
         await fs.writeFile(filePath, res.data);
+      } else {
+        debug.log(`${name}: se reutiliza archivo existente ${fileName}`);
       }
     }
+
+    debug.log(`${name}: Archivos generados (${fileNames.length}): ${fileNames.join(", ")}`);
 
     fontOptions.push({ name, folder, files: fileNames });
   }
@@ -135,6 +174,11 @@ export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
 
 const fonts = parseFonts(options.fonts, Boolean(options.all));
 const formats = normalizeFormats(options.formats);
-downloadFonts(fonts, options.output, options.subset, options.ts, formats).catch((err) => {
+const debug = createDebugLogger(Boolean(options.debug) || Boolean(process.env.MASS_FONTS_DEBUG), "cli");
+
+downloadFonts(fonts, options.output, options.subset, options.ts, formats, debug).catch((err) => {
   console.error("Error:", err.message);
+  if (options.debug || process.env.MASS_FONTS_DEBUG) {
+    console.error(err);
+  }
 });

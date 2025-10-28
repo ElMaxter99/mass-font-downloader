@@ -87,6 +87,7 @@ npx mass-fonts --fonts "Roboto:all" --all --output "output/fonts"
 | `--subset <subset>` | Subconjunto de caracteres (`latin`, `latin-ext`, `cyrillic`, etc.). | `latin` |
 | `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `woff2` |
 | `--all` | Descarga todas las variantes disponibles (combina pesos e itálicas automáticamente). | `false` |
+| `--debug` | Imprime trazas detalladas para depurar la descarga (puedes combinarlo con la variable `MASS_FONTS_DEBUG`). | `false` |
 
 > **Nota:** Cada familia se almacenará dentro de una subcarpeta con el nombre en minúsculas y espacios reemplazados por guiones (`poppins`, `open-sans`, etc.).
 
@@ -99,9 +100,16 @@ El paquete publica un binario llamado `mass-fonts`, de modo que puedes invocarlo
 ```bash
 npx mass-fonts --help
 npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
+npx mass-fonts --fonts "Inter:all" --all --debug --output "output/fonts"
 ```
 
 > Cuando el paquete aún no está publicado y quieres validar el comando localmente, ejecuta `npm link` en la raíz del proyecto para que `npx` (o el propio `mass-fonts`) resuelvan el binario desde tu copia de trabajo.
+
+### Depuración avanzada
+
+- Agrega `--debug` a la CLI para ver la query final enviada a Google Fonts, las variantes detectadas y cada URL descargada.
+- Si usas el script de configuración, define `MASS_FONTS_DEBUG=1` (o cualquier valor truthy) antes del comando: `MASS_FONTS_DEBUG=1 npm run download`.
+- Al fallar una descarga, la CLI mostrará el mensaje de error resumido; con `--debug` se imprimirá el objeto de error completo.
 
 ## 📁 Estructura de salida
 
