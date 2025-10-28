@@ -139,8 +139,7 @@ Este proyecto solo automatiza la descarga de los archivos hospedados en Google F
 
 ## 🤝 Contribuciones
 
-¡Las contribuciones son bienvenidas! Abre un issue o PR con mejoras, correcciones o nuevas características.
+¡Las contribuciones son bienvenidas! Abre un issue o PR con mejoras, correcciones o nuevas características. Crea un issue para seguir mejorando esta herramienta.
 
----
-
-¿Dudas o sugerencias? Crea un issue o contáctame para seguir mejorando esta herramienta.
+## 📝 Licencia
+MIT © 2025 AlvaroMaxter
