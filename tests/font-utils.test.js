@@ -52,6 +52,11 @@ test("normalizeFormats returns canonical list when input is string", () => {
   assert.deepEqual(result, ["woff2", "truetype"]);
 });
 
+test("normalizeFormats maps variation formats to their canonical counterparts", () => {
+  const result = normalizeFormats(["woff2-variations", "truetype-variations", "woff-variations"]);
+  assert.deepEqual(result, ["woff2", "truetype", "woff"]);
+});
+
 test("normalizeFormats falls back to defaults when no valid formats provided", () => {
   const result = normalizeFormats(null);
   assert.deepEqual(result, ["woff2"]);
@@ -86,6 +91,26 @@ test("extractSourcesFromCss reads urls, weights and italic flag", () => {
     format: "woff2",
     italic: true,
     weight: "400"
+  });
+});
+
+test("extractSourcesFromCss handles variation formats", () => {
+  const css = `
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 100 900;
+      src: url(https://example.com/inter-variable.woff2) format('woff2-variations');
+    }
+  `;
+
+  const sources = extractSourcesFromCss(css);
+  assert.equal(sources.length, 1);
+  assert.deepEqual(sources[0], {
+    url: "https://example.com/inter-variable.woff2",
+    format: "woff2-variations",
+    italic: false,
+    weight: "100-900"
   });
 });
 
