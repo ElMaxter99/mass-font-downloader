@@ -149,7 +149,7 @@ export const FONT_OPTIONS = [
 ## 🔧 Personalización adicional
 
 - **Añadir más subconjuntos:** Agrega valores en `subsets` (ej. `['latin', 'latin-ext']`).
-- **Cambiar formato de archivo:** Controla los formatos desde la propiedad `formats` del config (global o por familia) o la opción `--formats` en la CLI. Los valores válidos son `woff2`, `woff` y `ttf`.
+- **Cambiar formato de archivo:** Controla los formatos desde la propiedad `formats` del config (global o por familia) o la opción `--formats` en la CLI. Los valores válidos son `woff2`, `woff` y `ttf`. Si Google Fonts no ofrece el formato solicitado, la herramienta elige automáticamente el siguiente disponible (prioriza `woff2` → `woff` → `ttf`) y te avisa con una advertencia.
 - **Descargar todo el set de variantes:** Usa `weights: "all"`, `downloadAllVariants: true` o la opción `--all` para obtener todas las combinaciones de peso/estilo. Los archivos itálicos se renombran como `<familia>-<peso>-italic.<ext>`.
 - **Evitar la generación de TypeScript:** Pon `generateOptionsFile: false` en la configuración o no pases `--ts` en la CLI.
 

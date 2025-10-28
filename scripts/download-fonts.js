@@ -7,6 +7,7 @@ import {
   FORMAT_EXTENSIONS,
   FALLBACK_FORMATS,
   normalizeFormats,
+  selectAvailableFormats,
   buildFamilyQuery,
   extractSourcesFromCss,
   formatVariantSummary,
@@ -127,7 +128,6 @@ async function downloadFonts() {
     const downloadAll = shouldDownloadAll(font);
     const weights = normalizeWeights(font);
     const selectedFormats = normalizeFormats(font.formats, defaultFormats);
-    const displayFormats = selectedFormats.map((format) => FORMAT_EXTENSIONS[format] ?? format);
     const { query, variants } = await buildFamilyQuery(name, weights, {
       includeAllVariants: downloadAll,
       metadataFetcher
@@ -139,9 +139,6 @@ async function downloadFonts() {
         .join(", ")}`
     );
     const variantSummary = formatVariantSummary(variants);
-    console.log(
-      `→ ${name} (${downloadAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats.join(", ")}`
-    );
     const css = await getFontCss(query, subsets);
     debug.log(`${name}: CSS recibido (${css.length} caracteres)`);
 
@@ -167,6 +164,30 @@ async function downloadFonts() {
       return { ...source, canonicalFormat, extension };
     });
 
+    const availableFormats = preparedSources
+      .map((source) => source.canonicalFormat)
+      .filter(Boolean);
+    const effectiveFormats = selectAvailableFormats(selectedFormats, availableFormats);
+
+    if (!effectiveFormats.length) {
+      console.warn(
+        `${name}: no se encontraron fuentes compatibles con los formatos solicitados (${selectedFormats.join(", ")}).`
+      );
+      continue;
+    }
+
+    const missingRequested = selectedFormats.filter((format) => !effectiveFormats.includes(format));
+    if (missingRequested.length) {
+      const fallbackMessage = `${name}: formatos no disponibles (${missingRequested.join(", ")}). Se usarán: ${effectiveFormats.join(", ")}`;
+      console.warn(fallbackMessage);
+      debug.log(fallbackMessage);
+    }
+
+    const displayFormats = effectiveFormats.map((format) => FORMAT_EXTENSIONS[format] ?? format);
+    console.log(
+      `→ ${name} (${downloadAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats.join(", ")}`
+    );
+
     const matchedSources = preparedSources.filter((source) => {
       if (!source.canonicalFormat) {
         debug.log(
@@ -174,7 +195,7 @@ async function downloadFonts() {
         );
         return false;
       }
-      if (!selectedFormats.includes(source.canonicalFormat)) {
+      if (!effectiveFormats.includes(source.canonicalFormat)) {
         debug.log(
           `${name}: se descarta URL por no coincidir con los formatos solicitados (${source.canonicalFormat}) → ${source.url}`
         );

@@ -9,7 +9,9 @@ import {
   formatVariantSummary,
   buildFileName,
   FORMAT_ALIASES,
-  FORMAT_EXTENSIONS
+  FORMAT_EXTENSIONS,
+  selectAvailableFormats,
+  FORMAT_PRIORITY
 } from "../lib/font-utils.js";
 
 const metadataResponse = {
@@ -60,6 +62,20 @@ test("normalizeFormats maps variation formats to their canonical counterparts", 
 test("normalizeFormats falls back to defaults when no valid formats provided", () => {
   const result = normalizeFormats(null);
   assert.deepEqual(result, ["woff2"]);
+});
+
+test("selectAvailableFormats returns requested formats when available", () => {
+  const result = selectAvailableFormats(["woff2", "woff"], ["woff", "woff2", "truetype"]);
+  assert.deepEqual(result, ["woff2", "woff"]);
+});
+
+test("selectAvailableFormats falls back to priority order when requested missing", () => {
+  const result = selectAvailableFormats(["woff2"], ["truetype"]);
+  assert.deepEqual(result, ["truetype"]);
+});
+
+test("FORMAT_PRIORITY keeps preferred order", () => {
+  assert.deepEqual(FORMAT_PRIORITY, ["woff2", "woff", "truetype"]);
 });
 
 test("extractSourcesFromCss reads urls, weights and italic flag", () => {

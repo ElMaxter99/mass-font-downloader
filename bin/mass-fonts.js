@@ -8,6 +8,7 @@ import {
   FORMAT_EXTENSIONS,
   FALLBACK_FORMATS,
   normalizeFormats,
+  selectAvailableFormats,
   buildFamilyQuery,
   extractSourcesFromCss,
   formatVariantSummary,
@@ -94,8 +95,6 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
         .join(", ")}`
     );
     const variantSummary = formatVariantSummary(variants);
-    const displayFormats = formats.map((format) => FORMAT_EXTENSIONS[format] ?? format).join(", ");
-    console.log(`→ ${name} (${includeAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats}`);
 
     const css = await getFontCss(query, subset);
     debug.log(`${name}: CSS recibido (${css.length} caracteres)`);
@@ -120,6 +119,32 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
       return { ...source, canonicalFormat, extension };
     });
 
+    const availableFormats = preparedSources
+      .map((source) => source.canonicalFormat)
+      .filter(Boolean);
+    const effectiveFormats = selectAvailableFormats(formats, availableFormats);
+
+    if (!effectiveFormats.length) {
+      console.warn(
+        `${name}: no se encontraron fuentes compatibles con los formatos solicitados (${formats.join(", ")}).`
+      );
+      continue;
+    }
+
+    const missingRequested = formats.filter((format) => !effectiveFormats.includes(format));
+    if (missingRequested.length) {
+      const fallbackMessage = `${name}: formatos no disponibles (${missingRequested.join(", ")}). Se usarán: ${effectiveFormats.join(", ")}`;
+      console.warn(fallbackMessage);
+      debug.log(fallbackMessage);
+    }
+
+    const displayFormats = effectiveFormats
+      .map((format) => FORMAT_EXTENSIONS[format] ?? format)
+      .join(", ");
+    console.log(
+      `→ ${name} (${includeAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats}`
+    );
+
     const matchedSources = preparedSources.filter((source) => {
       if (!source.canonicalFormat) {
         debug.log(
@@ -127,7 +152,7 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
         );
         return false;
       }
-      if (!formats.includes(source.canonicalFormat)) {
+      if (!effectiveFormats.includes(source.canonicalFormat)) {
         debug.log(
           `${name}: se descarta URL por no coincidir con los formatos solicitados (${source.canonicalFormat}) → ${source.url}`
         );
