@@ -141,6 +141,22 @@ export const FONT_OPTIONS = [
 - **Duplicados:** si una fuente ya existe, no se vuelve a descargar; simplemente se reutiliza el archivo existente.
 - **Carpetas vacías:** si una familia no devuelve URLs válidas, se mostrará una advertencia y no se crearán archivos.
 
+## ✅ ¿Cómo validar el desarrollo?
+
+Ejecuta la batería de pruebas unitarias para verificar los helpers principales que alimentan tanto el script como la CLI:
+
+```bash
+npm test
+```
+
+Las pruebas usan el runner nativo de Node.js (`node --test`) y cubren la normalización de formatos, el parseo de CSS devuelto por Google Fonts, la resolución de variantes (incluyendo itálicas) y la construcción de nombres de archivo y queries.
+
+Además de los tests, puedes ejecutar rápidamente la CLI en modo ayuda para confirmar que las opciones estén disponibles:
+
+```bash
+npm run cli -- --help
+```
+
 ## 🤖 Integración en flujos automatizados
 
 - Invoca el script desde npm (`npm run download`) dentro de tu pipeline (GitHub Actions, GitLab CI, etc.).
