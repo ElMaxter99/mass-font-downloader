@@ -3,32 +3,16 @@ import fs from "fs-extra";
 import axios from "axios";
 import { Command } from "commander";
 
-const FORMAT_ALIASES = {
-  woff2: "woff2",
-  woff: "woff",
-  truetype: "truetype",
-  ttf: "truetype"
-};
-
-const FORMAT_EXTENSIONS = {
-  woff2: "woff2",
-  woff: "woff",
-  truetype: "ttf"
-};
-
-const FALLBACK_FORMATS = ["woff2"];
-
-function normalizeFormats(formats) {
-  if (!formats) return [...FALLBACK_FORMATS];
-  const raw = Array.isArray(formats) ? formats : formats.split(",");
-  const canonical = raw
-    .map((format) => FORMAT_ALIASES[format.trim().toLowerCase()])
-    .filter(Boolean);
-  if (canonical.length) {
-    return [...new Set(canonical)];
-  }
-  return [...FALLBACK_FORMATS];
-}
+import {
+  FORMAT_ALIASES,
+  FORMAT_EXTENSIONS,
+  FALLBACK_FORMATS,
+  normalizeFormats,
+  buildFamilyQuery,
+  extractSourcesFromCss,
+  formatVariantSummary,
+  buildFileName
+} from "../lib/font-utils.js";
 
 const program = new Command();
 
@@ -40,6 +24,7 @@ program
   .option("--ts <file>", "Ruta del archivo font-options.ts (opcional)")
   .option("--subset <subset>", "Subconjunto de caracteres (latin, latin-ext...)", "latin")
   .option("--formats <formats>", "Lista separada por comas de formatos (woff2, woff, ttf)")
+  .option("--all", "Descargar todas las variantes disponibles de cada familia")
   .parse(process.argv);
 
 const options = program.opts();
@@ -50,20 +35,26 @@ if (!options.fonts) {
 
 const GOOGLE_FONTS_API = "https://fonts.googleapis.com/css2";
 
-function parseFonts(str) {
+function parseFonts(str, downloadAllVariants) {
   return str.split(";").map((entry) => {
     const [name, weights] = entry.split(":");
+    const trimmedWeights = weights ? weights.trim() : "";
+    const isAllToken = ["*", "all"].includes(trimmedWeights.toLowerCase());
+    const includeAll = downloadAllVariants || isAllToken;
+    const parsedWeights = !includeAll && trimmedWeights
+      ? trimmedWeights.split(",").map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n))
+      : [];
     return {
       name: name.trim(),
-      weights: weights ? weights.split(",").map((n) => parseInt(n.trim())) : [400]
+      weights: parsedWeights.length ? parsedWeights : includeAll ? [] : [400],
+      includeAll
     };
   });
 }
 
-async function getFontCss(name, weights, subset) {
-  const familyParam = `family=${encodeURIComponent(name)}:wght@${weights.join(";")}`;
+async function getFontCss(familyQuery, subset) {
   const subsetParam = subset ? `&subset=${subset}` : "";
-  const url = `${GOOGLE_FONTS_API}?${familyParam}${subsetParam}&display=swap`;
+  const url = `${GOOGLE_FONTS_API}?${familyQuery}${subsetParam}&display=swap`;
   const { data } = await axios.get(url, {
     headers: { "User-Agent": "Mozilla/5.0" }
   });
@@ -76,12 +67,31 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
 
   console.log("Descargando fuentes desde Google Fonts...\n");
 
-  for (const { name, weights } of fonts) {
-    console.log(`→ ${name} (${weights.join(", ")}) → formatos: ${formats.map((format) => FORMAT_EXTENSIONS[format] ?? format).join(", ")}`);
-    const css = await getFontCss(name, weights, subset);
+  const metadataFetcher = () =>
+    axios.get("https://fonts.google.com/metadata/fonts", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json,text/plain,*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://fonts.google.com/",
+        Origin: "https://fonts.google.com"
+      },
+      responseType: "text"
+    });
 
-    const matches = [...css.matchAll(/url\((https:\/\/[^)]+)\).*?format\('(truetype|woff2|woff)'\)/g)];
-    if (!matches.length) {
+  for (const { name, weights, includeAll } of fonts) {
+    const { query, variants } = await buildFamilyQuery(name, weights, {
+      includeAllVariants: includeAll,
+      metadataFetcher
+    });
+    const variantSummary = formatVariantSummary(variants);
+    const displayFormats = formats.map((format) => FORMAT_EXTENSIONS[format] ?? format).join(", ");
+    console.log(`→ ${name} (${includeAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats}`);
+
+    const css = await getFontCss(query, subset);
+    const sources = extractSourcesFromCss(css);
+    if (!sources.length) {
       console.warn(`No se encontraron URLs para ${name}`);
       continue;
     }
@@ -92,22 +102,19 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats) {
 
     const fileNames = [];
 
-    for (const match of matches) {
-      const [_, url, format] = match;
-      const canonicalFormat = FORMAT_ALIASES[format.toLowerCase()];
+    for (const source of sources) {
+      const canonicalFormat = FORMAT_ALIASES[source.format];
       if (!canonicalFormat || !formats.includes(canonicalFormat)) continue;
-      const weightMatch = url.match(/wght@(\d+)/);
-      const weight = weightMatch ? weightMatch[1] : "400";
 
       const extension = FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat;
-      const fileName = `${folder}-${weight}.${extension}`;
+      const fileName = buildFileName(folder, source.weight, source.italic, extension);
       const filePath = `${fontDir}/${fileName}`;
       if (!fileNames.includes(fileName)) {
         fileNames.push(fileName);
       }
 
       if (!fs.existsSync(filePath)) {
-        const res = await axios.get(url, { responseType: "arraybuffer" });
+        const res = await axios.get(source.url, { responseType: "arraybuffer" });
         await fs.writeFile(filePath, res.data);
       }
     }
@@ -126,7 +133,7 @@ export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
   console.log(`\nDescarga completada. Archivos guardados en ${outputDir}`);
 }
 
-const fonts = parseFonts(options.fonts);
+const fonts = parseFonts(options.fonts, Boolean(options.all));
 const formats = normalizeFormats(options.formats);
 downloadFonts(fonts, options.output, options.subset, options.ts, formats).catch((err) => {
   console.error("Error:", err.message);

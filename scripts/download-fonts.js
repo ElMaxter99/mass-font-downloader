@@ -2,45 +2,21 @@ import fs from "fs-extra";
 import axios from "axios";
 import config from "../config/fonts.config.js";
 
-const FORMAT_ALIASES = {
-  woff2: "woff2",
-  woff: "woff",
-  truetype: "truetype",
-  ttf: "truetype"
-};
-
-const FORMAT_EXTENSIONS = {
-  woff2: "woff2",
-  woff: "woff",
-  truetype: "ttf"
-};
-
-const FALLBACK_FORMATS = ["woff2"];
-
-function normalizeFormats(formats, fallback = FALLBACK_FORMATS) {
-  const raw = Array.isArray(formats)
-    ? formats
-    : typeof formats === "string"
-      ? formats.split(",")
-      : [];
-
-  const canonical = raw
-    .map((format) => FORMAT_ALIASES[format.trim().toLowerCase()])
-    .filter(Boolean);
-
-  if (canonical.length) {
-    return [...new Set(canonical)];
-  }
-
-  return [...new Set(fallback)];
-}
+import {
+  FORMAT_ALIASES,
+  FORMAT_EXTENSIONS,
+  FALLBACK_FORMATS,
+  normalizeFormats,
+  buildFamilyQuery,
+  extractSourcesFromCss,
+  formatVariantSummary,
+  buildFileName
+} from "../lib/font-utils.js";
 
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
 const { fonts, subsets, outputDir, generateOptionsFile, optionsFilePath } = config;
 const GOOGLE_FONTS_API = "https://fonts.googleapis.com/css2";
-const FONT_SRC_REGEX = /url\((['"]?)(https:\/\/[^)'"\s]+)\1\)\s*format\(['"](truetype|woff2|woff)['"]\)/gi;
-
 const DEFAULT_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -78,10 +54,9 @@ async function fetchWithProxyFallback(url, options) {
   }
 }
 
-async function getFontCss(name, weights, subsets) {
-  const familyParam = `family=${encodeURIComponent(name)}:wght@${weights.join(";")}`;
+async function getFontCss(familyQuery, subsets) {
   const subsetParam = subsets?.length ? `&subset=${subsets.join(",")}` : "";
-  const url = `${GOOGLE_FONTS_API}?${familyParam}${subsetParam}&display=swap`;
+  const url = `${GOOGLE_FONTS_API}?${familyQuery}${subsetParam}&display=swap`;
 
   const { data } = await fetchWithProxyFallback(url, {
     headers: DEFAULT_HEADERS,
@@ -91,21 +66,78 @@ async function getFontCss(name, weights, subsets) {
   return data;
 }
 
+function shouldDownloadAll(font) {
+  if (font?.downloadAllVariants || font?.all === true) return true;
+  if (typeof font?.weights === "string") {
+    const token = font.weights.trim().toLowerCase();
+    if (token === "all" || token === "*") {
+      return true;
+    }
+  }
+  return false;
+}
+
+function normalizeWeights(font) {
+  if (shouldDownloadAll(font)) {
+    return [];
+  }
+
+  const { weights } = font || {};
+  if (!weights) return [400];
+  if (Array.isArray(weights)) {
+    const sanitized = weights
+      .map((value) => parseInt(value, 10))
+      .filter((value) => Number.isFinite(value));
+    return sanitized.length ? sanitized : [400];
+  }
+
+  if (typeof weights === "string") {
+    const parts = weights
+      .split(",")
+      .map((value) => parseInt(value.trim(), 10))
+      .filter((value) => Number.isFinite(value));
+    return parts.length ? parts : [400];
+  }
+
+  return [400];
+}
+
 async function downloadFonts() {
   console.log("Descargando fuentes desde Google Fonts...\n");
 
   await fs.ensureDir(outputDir);
   const fontOptions = [];
 
-  for (const { name, weights = [400], formats } of fonts) {
-    const selectedFormats = normalizeFormats(formats, defaultFormats);
+  const metadataFetcher = () =>
+    fetchWithProxyFallback("https://fonts.google.com/metadata/fonts", {
+      headers: {
+        ...DEFAULT_HEADERS,
+        Accept: "application/json,text/plain,*/*",
+        Referer: "https://fonts.google.com/",
+        Origin: "https://fonts.google.com"
+      },
+      responseType: "text"
+    });
+
+  for (const font of fonts) {
+    const { name } = font;
+    const downloadAll = shouldDownloadAll(font);
+    const weights = normalizeWeights(font);
+    const selectedFormats = normalizeFormats(font.formats, defaultFormats);
     const displayFormats = selectedFormats.map((format) => FORMAT_EXTENSIONS[format] ?? format);
-    console.log(`→ ${name} (${weights.join(", ")}) → formatos: ${displayFormats.join(", ")}`);
-    const css = await getFontCss(name, weights, subsets);
+    const { query, variants } = await buildFamilyQuery(name, weights, {
+      includeAllVariants: downloadAll,
+      metadataFetcher
+    });
+    const variantSummary = formatVariantSummary(variants);
+    console.log(
+      `→ ${name} (${downloadAll ? `todas las variantes${variantSummary ? `: ${variantSummary}` : ""}` : weights.join(", ")}) → formatos: ${displayFormats.join(", ")}`
+    );
+    const css = await getFontCss(query, subsets);
 
-    const matches = [...css.matchAll(FONT_SRC_REGEX)];
+    const sources = extractSourcesFromCss(css);
 
-    if (!matches.length) {
+    if (!sources.length) {
       console.warn(`No se encontraron URLs para ${name}`);
       continue;
     }
@@ -116,19 +148,16 @@ async function downloadFonts() {
 
     const fileNames = [];
 
-    for (const match of matches) {
-      const [_, __, url, format] = match;
-      const canonicalFormat = FORMAT_ALIASES[format.toLowerCase()];
+    for (const source of sources) {
+      const canonicalFormat = FORMAT_ALIASES[source.format];
       if (!canonicalFormat || !selectedFormats.includes(canonicalFormat)) continue;
-      const weightMatch = url.match(/wght@(\d+)/);
-      const weight = weightMatch ? weightMatch[1] : "400";
 
       const extension = FORMAT_EXTENSIONS[canonicalFormat] ?? canonicalFormat;
-      const fileName = `${folder}-${weight}.${extension}`;
+      const fileName = buildFileName(folder, source.weight, source.italic, extension);
       const filePath = `${fontDir}/${fileName}`;
 
       if (!fs.existsSync(filePath)) {
-        const res = await fetchWithProxyFallback(url, {
+        const res = await fetchWithProxyFallback(source.url, {
           responseType: "arraybuffer",
           headers: {
             ...DEFAULT_HEADERS,

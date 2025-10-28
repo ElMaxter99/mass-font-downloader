@@ -1,0 +1,186 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  normalizeFormats,
+  extractSourcesFromCss,
+  resolveAllVariants,
+  buildFamilyQuery,
+  formatVariantSummary,
+  buildFileName,
+  FORMAT_ALIASES,
+  FORMAT_EXTENSIONS
+} from "../lib/font-utils.js";
+
+const metadataResponse = {
+  familyMetadataList: [
+    {
+      family: "Roboto",
+      variants: ["regular", "italic", "500", "700italic"]
+    },
+    {
+      family: "Fallback",
+      fonts: [
+        { fontStyle: "normal", fontWeight: "400" },
+        { fontStyle: "italic", fontWeight: "400" },
+        { style: "normal", weight: 700 }
+      ]
+    },
+    {
+      family: "Variable Family",
+      axes: [
+        { tag: "wght", start: 200, end: 600, step: 200 },
+        { tag: "ital", start: 0, end: 1, step: 1 }
+      ]
+    }
+  ]
+};
+
+const metadataFetcher = async () => ({ data: metadataResponse });
+
+test("normalizeFormats returns canonical list when input is string", () => {
+  const result = normalizeFormats("WOFF2, ttf, unknown");
+  assert.deepEqual(result, ["woff2", "truetype"]);
+});
+
+test("normalizeFormats falls back to defaults when no valid formats provided", () => {
+  const result = normalizeFormats(null);
+  assert.deepEqual(result, ["woff2"]);
+});
+
+test("extractSourcesFromCss reads urls, weights and italic flag", () => {
+  const css = `
+    @font-face {
+      font-family: 'Roboto';
+      font-style: normal;
+      font-weight: 400;
+      src: url(https://example.com/roboto-400.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: 'Roboto';
+      font-style: italic;
+      font-weight: 400;
+      src: url("https://example.com/roboto-400italic.woff2") format("woff2");
+    }
+  `;
+
+  const sources = extractSourcesFromCss(css);
+  assert.equal(sources.length, 2);
+  assert.deepEqual(sources[0], {
+    url: "https://example.com/roboto-400.woff2",
+    format: "woff2",
+    italic: false,
+    weight: "400"
+  });
+  assert.deepEqual(sources[1], {
+    url: "https://example.com/roboto-400italic.woff2",
+    format: "woff2",
+    italic: true,
+    weight: "400"
+  });
+});
+
+test("resolveAllVariants parses variants, fonts and axes", async () => {
+  const roboto = await resolveAllVariants("Roboto", { metadataFetcher });
+  assert.equal(roboto.source, "variants");
+  assert.deepEqual(roboto.variants, [
+    { weight: 400, italic: false, source: "variants" },
+    { weight: 400, italic: true, source: "variants" },
+    { weight: 500, italic: false, source: "variants" },
+    { weight: 700, italic: true, source: "variants" }
+  ]);
+
+  const fallback = await resolveAllVariants("Fallback", { metadataFetcher });
+  assert.equal(fallback.source, "fonts");
+  assert.deepEqual(fallback.variants, [
+    { weight: 400, italic: false, source: "fonts" },
+    { weight: 400, italic: true, source: "fonts" },
+    { weight: 700, italic: false, source: "fonts" }
+  ]);
+
+  const generated = await resolveAllVariants("Variable Family", { metadataFetcher });
+  assert.equal(generated.source, "axes");
+  assert.deepEqual(generated.variants, [
+    { weight: 200, italic: false, source: "axes" },
+    { weight: 200, italic: true, source: "axes" },
+    { weight: 400, italic: false, source: "axes" },
+    { weight: 400, italic: true, source: "axes" },
+    { weight: 600, italic: false, source: "axes" },
+    { weight: 600, italic: true, source: "axes" }
+  ]);
+});
+
+test("resolveAllVariants throws when family not found", async () => {
+  await assert.rejects(() => resolveAllVariants("Missing", { metadataFetcher }), {
+    message: /No se encontró metadata/
+  });
+});
+
+test("buildFamilyQuery returns weighted query when explicit weights provided", async () => {
+  const { query, variants } = await buildFamilyQuery("Roboto", [700, "400"], {
+    metadataFetcher
+  });
+
+  assert.equal(query, "family=Roboto:wght@400;700");
+  assert.deepEqual(variants, [
+    { weight: 400, italic: false },
+    { weight: 700, italic: false }
+  ]);
+});
+
+test("buildFamilyQuery builds ital axis query when includeAllVariants is true", async () => {
+  const { query, variants } = await buildFamilyQuery(
+    "Roboto",
+    [],
+    {
+      includeAllVariants: true,
+      metadataFetcher
+    }
+  );
+
+  assert.equal(query, "family=Roboto:ital,wght@0,400;0,500;1,400;1,700");
+  assert.deepEqual(variants, [
+    { weight: 400, italic: false },
+    { weight: 400, italic: true },
+    { weight: 500, italic: false },
+    { weight: 700, italic: true }
+  ]);
+});
+
+test("buildFamilyQuery compacts axis ranges when metadata only exposes axes", async () => {
+  const { query, variants } = await buildFamilyQuery(
+    "Variable Family",
+    [],
+    {
+      includeAllVariants: true,
+      metadataFetcher
+    }
+  );
+
+  assert.equal(query, "family=Variable%20Family:ital,wght@0,200..600;1,200..600");
+  assert.deepEqual(variants, [
+    { weight: 200, italic: false },
+    { weight: 200, italic: true },
+    { weight: 400, italic: false },
+    { weight: 400, italic: true },
+    { weight: 600, italic: false },
+    { weight: 600, italic: true }
+  ]);
+});
+
+test("formatVariantSummary and buildFileName produce expected strings", () => {
+  const summary = formatVariantSummary([
+    { weight: 400, italic: false },
+    { weight: 400, italic: true },
+    { weight: 700, italic: false }
+  ]);
+  assert.equal(summary, "400, 400i, 700");
+
+  const fileName = buildFileName("roboto", 400, true, "woff2");
+  assert.equal(fileName, "roboto-400-italic.woff2");
+});
+
+test("format maps expose expected extensions", () => {
+  assert.equal(FORMAT_ALIASES.woff2, "woff2");
+  assert.equal(FORMAT_EXTENSIONS.truetype, "ttf");
+});
