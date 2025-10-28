@@ -6,7 +6,6 @@ import { Command } from "commander";
 import {
   FORMAT_ALIASES,
   FORMAT_EXTENSIONS,
-  FALLBACK_FORMATS,
   normalizeFormats,
   buildFamilyQuery,
   extractSourcesFromCss,
