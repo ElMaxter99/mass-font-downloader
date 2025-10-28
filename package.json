@@ -4,6 +4,9 @@
   "description": "Script para descargar y organizar fuentes de Google Fonts de forma masiva (sin dependencias externas)",
   "type": "module",
   "main": "scripts/download-fonts.js",
+  "bin": {
+    "mass-fonts": "./bin/mass-fonts.js"
+  },
   "scripts": {
     "start": "node scripts/download-fonts.js",
     "download": "node scripts/download-fonts.js",

@@ -92,6 +92,17 @@ npx mass-fonts --fonts "Roboto:all" --all --output "output/fonts"
 
 > También puedes indicar `all` o `*` directamente en la definición de cada familia (`--fonts "Roboto:all"`) para forzar la descarga completa sin usar la bandera global.
 
+### Ejecutar la CLI vía `npx`
+
+El paquete publica un binario llamado `mass-fonts`, de modo que puedes invocarlo directamente sin instalarlo de forma permanente:
+
+```bash
+npx mass-fonts --help
+npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
+```
+
+> Cuando el paquete aún no está publicado y quieres validar el comando localmente, ejecuta `npm link` en la raíz del proyecto para que `npx` (o el propio `mass-fonts`) resuelvan el binario desde tu copia de trabajo.
+
 ## 📁 Estructura de salida
 
 Después de ejecutar una descarga, el directorio de salida tendrá este aspecto:
