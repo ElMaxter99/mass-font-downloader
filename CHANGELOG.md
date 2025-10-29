@@ -2,6 +2,10 @@
 
 Todas las novedades relevantes de `mass-font-downloader` se documentarán en este archivo.
 
+## [1.0.2] - 2025-10-29
+### Añadido
+- Fix Integración de para subir a NPM
+
 ## [1.0.1] - 2025-10-29
 ### Añadido
 - Integración de para subir a NPM
