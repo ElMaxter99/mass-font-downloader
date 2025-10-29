@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import path from "node:path";
 import axios from "axios";
 import config from "../config/fonts.config.js";
 
@@ -210,7 +211,8 @@ async function downloadFonts() {
 
     for (const source of matchedSources) {
       const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
-      const filePath = `${fontDir}/${fileName}`;
+      const sanitizedFileName = path.basename(fileName);
+      const filePath = path.join(fontDir, sanitizedFileName);
 
       if (!fs.existsSync(filePath)) {
         debug.log(`${name}: descargando ${source.url} → ${fileName}`);
