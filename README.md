@@ -1,6 +1,6 @@
 # 🚀 Mass Font Downloader
 
-![Node.js](https://img.shields.io/badge/Node.js-18%2B-3C873A?logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-22%2B-3C873A?logo=node.js&logoColor=white)
 ![CLI](https://img.shields.io/badge/CLI-ready-1D3557)
 ![Status](https://img.shields.io/badge/status-active-success)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
