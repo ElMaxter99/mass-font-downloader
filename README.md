@@ -1,5 +1,7 @@
 # Mass Font Downloader
 
+![Logotipo de Mass Font Downloader](assets/logo.svg)
+
 Script/CLI en Node.js para descargar masivamente fuentes de Google Fonts, renombrarlas por tipografía y peso, y (opcionalmente) generar un archivo `font-options.ts` listo para importar en tus proyectos.
 
 ## 🚀 Características
