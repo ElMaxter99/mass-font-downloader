@@ -15,7 +15,8 @@ import {
   formatVariantSummary,
   buildFileName,
   slugifyFontFolder,
-  resolveWeightValue
+  resolveWeightValue,
+  resolveWeightOverrides
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { resolveSafePath } from "../lib/path-utils.js";
@@ -64,60 +65,6 @@ const DEFAULT_HEADERS = {
 };
 
 const debug = createDebugLogger(Boolean(process.env.MASS_FONTS_DEBUG), "script");
-
-function resolveWeightOverrides(rawWeights, allFlag) {
-  const result = {
-    overrideWeights: null,
-    forceAllVariants: Boolean(allFlag)
-  };
-
-  if (!rawWeights && !result.forceAllVariants) {
-    return result;
-  }
-
-  const normalized = typeof rawWeights === "string" ? rawWeights.trim() : "";
-  if (!normalized && !result.forceAllVariants) {
-    return result;
-  }
-
-  if (["*", "all"].includes(normalized.toLowerCase())) {
-    return { overrideWeights: null, forceAllVariants: true };
-  }
-
-  const tokens = normalized.split(",").map((token) => token.trim()).filter(Boolean);
-  if (!tokens.length) {
-    return result;
-  }
-
-  const resolved = [];
-  const invalid = [];
-
-  for (const token of tokens) {
-    const weight = resolveWeightValue(token);
-    if (Number.isFinite(weight)) {
-      if (!resolved.includes(weight)) {
-        resolved.push(weight);
-      }
-    } else {
-      invalid.push(token);
-    }
-  }
-
-  if (invalid.length) {
-    console.warn(
-      `Pesos no reconocidos en --weights (${invalid.join(", ")}). Se ignorarán.`
-    );
-  }
-
-  if (!resolved.length) {
-    return result;
-  }
-
-  return {
-    overrideWeights: resolved,
-    forceAllVariants: false
-  };
-}
 
 function shouldRetryWithoutProxy(error) {
   if (!error) return false;

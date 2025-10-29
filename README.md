@@ -81,21 +81,33 @@ npm run cli -- --fonts "Roboto:400,700;Poppins:400" --output "output/fonts" --ts
 npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
 ```
 
+Si ejecutas la CLI dentro de un proyecto que tenga `config/fonts.config.js`, puedes omitir `--fonts`
+para reutilizar todas las familias, formatos y nomenclatura definidas allí. Por ejemplo:
+
+```bash
+npx mass-fonts --all --output "output/fonts"
+```
+
+También puedes apuntar a otro archivo con `--config ./mi-config.js`.
+
 ### Parámetros principales
 
 | Opción | Descripción | Valor por defecto |
 | --- | --- | --- |
-| `-f, --fonts <fonts>` | Familias y pesos separados por `;` y `,` (obligatorio). | — |
-| `-o, --output <dir>` | Carpeta raíz donde se guardarán las fuentes. | `output/fonts` |
-| `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | — |
-| `--subset <subset>` | Subconjunto de caracteres (`latin`, `latin-ext`, ...). | `latin` |
-| `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `woff2` |
+| `-f, --fonts <fonts>` | Familias y pesos separados por `;` y `,` (opcional si hay config). | — |
+| `-o, --output <dir>` | Carpeta raíz donde se guardarán las fuentes. | `output/fonts` o `config.outputDir` |
+| `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | Config o — |
+| `--subset <subset>` | Subconjunto(s) de caracteres (`latin`, `latin-ext`, ...). | `latin` o `config.subsets` |
+| `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `config.formats` o `woff2` |
+| `--weights <weights>` | Sobrescribe los pesos para todas las familias (`regular,semibold,bold`). | — |
+| `--config <file>` | Ruta del archivo de configuración a reutilizar. | `config/fonts.config.js` si existe |
 | `--all` | Descarga todas las variantes disponibles para cada familia. | `false` |
 | `--debug` | Muestra logs detallados de la petición y cada descarga. | `false` |
 
 > Consejo: combina `--debug` con la variable `MASS_FONTS_DEBUG=1` para inspeccionar respuestas crudas en pipelines CI.
 
 Los pesos pueden declararse tanto en formato numérico (`400`, `500`, `700`) como textual (`regular`, `medium`, `semibold`, `bold`, `black`).
+La opción `--weights` acepta los mismos alias y, cuando se usa junto con `--config` (o el archivo por defecto), reemplaza los pesos definidos allí.
 La opción `--all` ignora la lista explícita y trae todas las variantes publicadas por Google Fonts (incluyendo itálicas cuando existan).
 
 ## 📁 Estructura de salida

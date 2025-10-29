@@ -8,6 +8,7 @@ Todas las novedades relevantes de `mass-font-downloader` se documentarán en est
 - Nuevas pruebas que cubren la estrategia de renombrado configurable.
 - Interpretación de alias textuales de peso (`regular`, `medium`, `semibold`, `bold`, `black`, etc.) tanto en la configuración como en la CLI, incluido el modo `--all`.
 - Bandera `--weights` (y `--all` equivalente) en el script principal para sobrescribir los pesos sin editar `config/fonts.config.js`.
+- La CLI `mass-fonts` detecta automáticamente `config/fonts.config.js` (o uno proporcionado con `--config`) cuando no se indica `--fonts`, permitiendo ejecutar `npx mass-fonts --all --output "output/fonts"` para descargar todas las familias definidas.
 
 ## [1.0.2] - 2025-10-29
 ### Añadido

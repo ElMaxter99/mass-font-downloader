@@ -13,7 +13,8 @@ import {
   FORMAT_EXTENSIONS,
   selectAvailableFormats,
   FORMAT_PRIORITY,
-  resolveWeightValue
+  resolveWeightValue,
+  resolveWeightOverrides
 } from "../lib/font-utils.js";
 
 const metadataResponse = {
@@ -87,6 +88,26 @@ test("resolveWeightValue interpreta números y alias de peso", () => {
   assert.equal(resolveWeightValue("Italic"), 400);
   assert.equal(resolveWeightValue(""), null);
   assert.equal(resolveWeightValue("unknown"), null);
+});
+
+test("resolveWeightOverrides normaliza overrides y respeta --all", () => {
+  const override = resolveWeightOverrides("regular,700,bold", false);
+  assert.deepEqual(override, {
+    overrideWeights: [400, 700],
+    forceAllVariants: false
+  });
+
+  const forceAll = resolveWeightOverrides("all", false);
+  assert.deepEqual(forceAll, {
+    overrideWeights: null,
+    forceAllVariants: true
+  });
+
+  const fromFlag = resolveWeightOverrides(null, true);
+  assert.deepEqual(fromFlag, {
+    overrideWeights: null,
+    forceAllVariants: true
+  });
 });
 
 test("FORMAT_PRIORITY keeps preferred order", () => {
