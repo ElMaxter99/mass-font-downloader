@@ -2,6 +2,10 @@
 
 Todas las novedades relevantes de `mass-font-downloader` se documentarán en este archivo.
 
+## [1.0.1] - 2025-10-29
+### Añadido
+- Integración de para subir a NPM
+
 ## [1.0.0] - 2025-10-29
 ### Añadido
 - CLI `mass-fonts` para descargas ad hoc con soporte de banderas para subconjuntos, formatos, generación opcional de `font-options.ts`, descarga de todas las variantes y modo depuración. 
