@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import axios from "axios";
+import { Command } from "commander";
 import config from "../config/fonts.config.js";
 
 import {
@@ -18,6 +19,27 @@ import {
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { resolveSafePath } from "../lib/path-utils.js";
+
+const cli = new Command();
+
+cli
+  .allowUnknownOption(false)
+  .option(
+    "--weights <weights>",
+    "Sobrescribe los pesos para todas las familias (ej: 'regular,semibold,bold')"
+  )
+  .option(
+    "--all",
+    "Ignora los pesos configurados y descarga todas las variantes disponibles"
+  )
+  .parse(process.argv);
+
+const cliOptions = cli.opts();
+
+const {
+  overrideWeights,
+  forceAllVariants
+} = resolveWeightOverrides(cliOptions.weights, cliOptions.all);
 
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
@@ -42,6 +64,60 @@ const DEFAULT_HEADERS = {
 };
 
 const debug = createDebugLogger(Boolean(process.env.MASS_FONTS_DEBUG), "script");
+
+function resolveWeightOverrides(rawWeights, allFlag) {
+  const result = {
+    overrideWeights: null,
+    forceAllVariants: Boolean(allFlag)
+  };
+
+  if (!rawWeights && !result.forceAllVariants) {
+    return result;
+  }
+
+  const normalized = typeof rawWeights === "string" ? rawWeights.trim() : "";
+  if (!normalized && !result.forceAllVariants) {
+    return result;
+  }
+
+  if (["*", "all"].includes(normalized.toLowerCase())) {
+    return { overrideWeights: null, forceAllVariants: true };
+  }
+
+  const tokens = normalized.split(",").map((token) => token.trim()).filter(Boolean);
+  if (!tokens.length) {
+    return result;
+  }
+
+  const resolved = [];
+  const invalid = [];
+
+  for (const token of tokens) {
+    const weight = resolveWeightValue(token);
+    if (Number.isFinite(weight)) {
+      if (!resolved.includes(weight)) {
+        resolved.push(weight);
+      }
+    } else {
+      invalid.push(token);
+    }
+  }
+
+  if (invalid.length) {
+    console.warn(
+      `Pesos no reconocidos en --weights (${invalid.join(", ")}). Se ignorarán.`
+    );
+  }
+
+  if (!resolved.length) {
+    return result;
+  }
+
+  return {
+    overrideWeights: resolved,
+    forceAllVariants: false
+  };
+}
 
 function shouldRetryWithoutProxy(error) {
   if (!error) return false;
@@ -82,6 +158,8 @@ async function getFontCss(familyQuery, subsets) {
 }
 
 function shouldDownloadAll(font) {
+  if (forceAllVariants) return true;
+  if (overrideWeights?.length) return false;
   if (font?.downloadAllVariants || font?.all === true) return true;
   if (typeof font?.weights === "string") {
     const token = font.weights.trim().toLowerCase();
@@ -93,6 +171,14 @@ function shouldDownloadAll(font) {
 }
 
 function normalizeWeights(font) {
+  if (forceAllVariants) {
+    return [];
+  }
+
+  if (overrideWeights?.length) {
+    return overrideWeights;
+  }
+
   if (shouldDownloadAll(font)) {
     return [];
   }

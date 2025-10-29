@@ -7,6 +7,7 @@ Todas las novedades relevantes de `mass-font-downloader` se documentarán en est
 - Personalización avanzada de nombres de archivo mediante `fileNameOptions`, incluyendo mapeo de pesos numéricos a etiquetas (`Regular`, `Bold`, etc.).
 - Nuevas pruebas que cubren la estrategia de renombrado configurable.
 - Interpretación de alias textuales de peso (`regular`, `medium`, `semibold`, `bold`, `black`, etc.) tanto en la configuración como en la CLI, incluido el modo `--all`.
+- Bandera `--weights` (y `--all` equivalente) en el script principal para sobrescribir los pesos sin editar `config/fonts.config.js`.
 
 ## [1.0.2] - 2025-10-29
 ### Añadido

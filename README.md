@@ -42,6 +42,20 @@ npm start
 
 Los archivos se guardarán en el directorio definido en `config/fonts.config.js` (por defecto `output/fonts`). Si has habilitado `generateOptionsFile`, también se producirá `font-options.ts` con el arreglo `FONT_OPTIONS` para consumirlo en tus apps.
 
+### Sobrescribir pesos sin tocar la configuración
+
+Si quieres reutilizar la lista de familias del config pero descargar únicamente ciertos pesos (por ejemplo `Regular`, `SemiBold` y `Bold`), pásalos como bandera al script oficial:
+
+```bash
+# Solo Regular, SemiBold y Bold para todas las familias del config
+npm run download -- --weights regular,semibold,bold
+
+# Para forzar todas las variantes disponibles e ignorar los pesos definidos en el config
+npm run download -- --all
+```
+
+La bandera `--weights` acepta valores numéricos y alias textuales (`regular`, `medium`, `semibold`, `bold`, `black`, etc.). El patrón definido en `fileNameOptions` seguirá aplicándose, por lo que obtendrás nombres como `Roboto-Regular.woff2` o `Inter-SemiBold.woff2` sin tocar el archivo de configuración.
+
 ## ⚙️ Configuración por archivo
 
 1. Edita `config/fonts.config.js` y ajusta las propiedades:
