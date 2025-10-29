@@ -12,7 +12,8 @@ import {
   FORMAT_ALIASES,
   FORMAT_EXTENSIONS,
   selectAvailableFormats,
-  FORMAT_PRIORITY
+  FORMAT_PRIORITY,
+  resolveWeightValue
 } from "../lib/font-utils.js";
 
 const metadataResponse = {
@@ -73,6 +74,19 @@ test("selectAvailableFormats returns requested formats when available", () => {
 test("selectAvailableFormats falls back to priority order when requested missing", () => {
   const result = selectAvailableFormats(["woff2"], ["truetype"]);
   assert.deepEqual(result, ["truetype"]);
+});
+
+test("resolveWeightValue interpreta números y alias de peso", () => {
+  assert.equal(resolveWeightValue(500), 500);
+  assert.equal(resolveWeightValue("700"), 700);
+  assert.equal(resolveWeightValue("Regular"), 400);
+  assert.equal(resolveWeightValue("semiBold"), 600);
+  assert.equal(resolveWeightValue("semiBol"), 600);
+  assert.equal(resolveWeightValue("Extra-Bold"), 800);
+  assert.equal(resolveWeightValue("black"), 900);
+  assert.equal(resolveWeightValue("Italic"), 400);
+  assert.equal(resolveWeightValue(""), null);
+  assert.equal(resolveWeightValue("unknown"), null);
 });
 
 test("FORMAT_PRIORITY keeps preferred order", () => {
@@ -246,6 +260,25 @@ test("formatVariantSummary and buildFileName produce expected strings", () => {
 
   const fileName = buildFileName("roboto", 400, true, "woff2");
   assert.equal(fileName, "roboto-400-italic.woff2");
+});
+
+test("buildFileName accepts custom casing and weight naming options", () => {
+  const options = {
+    familyCase: "pascal",
+    weightCase: "pascal",
+    italicCase: "pascal",
+    separator: "-",
+    italicSeparator: "",
+    italicSuffix: "Italic",
+    extensionCase: "lower",
+    weightNaming: "text"
+  };
+
+  const regularName = buildFileName("Roboto", 400, false, "ttf", options);
+  assert.equal(regularName, "Roboto-Regular.ttf");
+
+  const italicName = buildFileName("JetBrains Mono", 700, true, "ttf", options);
+  assert.equal(italicName, "JetBrainsMono-BoldItalic.ttf");
 });
 
 test("slugifyFontFolder normalizes font names safely", () => {

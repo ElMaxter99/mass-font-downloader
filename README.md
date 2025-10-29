@@ -10,7 +10,8 @@ Descarga, renombra y organiza tipografías de Google Fonts a escala sin depender
 ## 🧩 Características
 
 - ✅ Descarga masiva de familias, pesos y estilos directamente desde Google Fonts.
-- 🧭 Renombrado consistente de archivos usando el patrón `<familia>-<peso>(-italic).<ext>`.
+- 🧭 Renombrado consistente de archivos con patrón configurable (por defecto `<familia>-<peso>(-italic).<ext>`).
+- 🎯 Nomenclatura personalizable (`Roboto-Regular.ttf`, `jetbrains-mono-700.woff2`, etc.) mediante `fileNameOptions`.
 - 🗂️ Organización automática por carpetas (`output/fonts/<familia>`).
 - 🧾 Generación opcional de un `font-options.ts` con metadata lista para tus componentes.
 - 🛠️ Configuración flexible mediante archivo (`config/fonts.config.js`) o CLI (`bin/mass-fonts.js`).
@@ -46,6 +47,7 @@ Los archivos se guardarán en el directorio definido en `config/fonts.config.js`
 1. Edita `config/fonts.config.js` y ajusta las propiedades:
    - `fonts`: familias a descargar. Define pesos con arrays (`weights: [400, 700]`) o usa `"all"`/`downloadAllVariants: true` para traer todas las combinaciones, incluyendo itálicas.
    - `formats`: formatos globales (entre `woff2`, `woff`, `ttf`). Cada familia puede sobrescribirlos.
+   - `fileNameOptions`: personaliza la nomenclatura final (`familyCase`, `weightCase`, sufijo de itálicas, etc.). Usa `weightNaming: "text"` para transformar `400` en `Regular` y conseguir archivos como `Roboto-Regular.ttf`.
    - `subsets`: subconjuntos de caracteres (`latin`, `latin-ext`, etc.).
    - `outputDir`: carpeta raíz de salida.
    - `generateOptionsFile` y `optionsFilePath`: controlan la creación de `font-options.ts`.
@@ -79,19 +81,22 @@ npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
 
 > Consejo: combina `--debug` con la variable `MASS_FONTS_DEBUG=1` para inspeccionar respuestas crudas en pipelines CI.
 
+Los pesos pueden declararse tanto en formato numérico (`400`, `500`, `700`) como textual (`regular`, `medium`, `semibold`, `bold`, `black`).
+La opción `--all` ignora la lista explícita y trae todas las variantes publicadas por Google Fonts (incluyendo itálicas cuando existan).
+
 ## 📁 Estructura de salida
 
 ```
 output/
 └── fonts/
     ├── roboto/
-    │   ├── roboto-400.woff2
-    │   ├── roboto-400-italic.woff2
-    │   └── roboto-700.woff2
+    │   ├── Roboto-Regular.woff2
+    │   ├── Roboto-RegularItalic.woff2
+    │   └── Roboto-Bold.woff2
     └── poppins/
-        ├── poppins-400.woff2
-        ├── poppins-600.woff2
-        └── poppins-700.woff2
+        ├── Poppins-Regular.woff2
+        ├── Poppins-SemiBold.woff2
+        └── Poppins-Bold.woff2
 ```
 
 Si `generateOptionsFile` está activo, se producirá un `font-options.ts` similar a:
@@ -101,7 +106,7 @@ export const FONT_OPTIONS = [
   {
     name: 'Roboto',
     folder: 'roboto',
-    files: ['roboto-400.woff2', 'roboto-400-italic.woff2', 'roboto-700.woff2']
+    files: ['Roboto-Regular.woff2', 'Roboto-RegularItalic.woff2', 'Roboto-Bold.woff2']
   }
 ];
 ```

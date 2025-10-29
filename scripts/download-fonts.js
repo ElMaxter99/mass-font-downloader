@@ -13,14 +13,22 @@ import {
   extractSourcesFromCss,
   formatVariantSummary,
   buildFileName,
-  slugifyFontFolder
+  slugifyFontFolder,
+  resolveWeightValue
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { resolveSafePath } from "../lib/path-utils.js";
 
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
-const { fonts, subsets, outputDir, generateOptionsFile, optionsFilePath } = config;
+const {
+  fonts,
+  subsets,
+  outputDir,
+  generateOptionsFile,
+  optionsFilePath,
+  fileNameOptions
+} = config;
 const GOOGLE_FONTS_API = "https://fonts.googleapis.com/css2";
 const DEFAULT_HEADERS = {
   "User-Agent":
@@ -91,22 +99,18 @@ function normalizeWeights(font) {
 
   const { weights } = font || {};
   if (!weights) return [400];
-  if (Array.isArray(weights)) {
-    const sanitized = weights
-      .map((value) => parseInt(value, 10))
-      .filter((value) => Number.isFinite(value));
-    return sanitized.length ? sanitized : [400];
-  }
 
-  if (typeof weights === "string") {
-    const parts = weights
-      .split(",")
-      .map((value) => parseInt(value.trim(), 10))
-      .filter((value) => Number.isFinite(value));
-    return parts.length ? parts : [400];
-  }
+  const raw = Array.isArray(weights)
+    ? weights
+    : typeof weights === "string"
+      ? weights.split(",").map((token) => token.trim())
+      : [weights];
 
-  return [400];
+  const parsed = raw
+    .map((value) => resolveWeightValue(value))
+    .filter((value) => Number.isFinite(value));
+
+  return parsed.length ? parsed : [400];
 }
 
 async function downloadFonts() {
@@ -213,7 +217,13 @@ async function downloadFonts() {
     const fileNames = [];
 
     for (const source of matchedSources) {
-      const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
+      const fileName = buildFileName(
+        folder,
+        source.weight,
+        source.italic,
+        source.extension,
+        fileNameOptions
+      );
       const filePath = resolveSafePath(fontDir, fileName);
 
       if (!fs.existsSync(filePath)) {

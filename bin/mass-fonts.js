@@ -14,7 +14,8 @@ import {
   extractSourcesFromCss,
   formatVariantSummary,
   buildFileName,
-  slugifyFontFolder
+  slugifyFontFolder,
+  resolveWeightValue
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { resolveSafePath } from "../lib/path-utils.js";
@@ -48,7 +49,10 @@ function parseFonts(str, downloadAllVariants) {
     const isAllToken = ["*", "all"].includes(trimmedWeights.toLowerCase());
     const includeAll = downloadAllVariants || isAllToken;
     const parsedWeights = !includeAll && trimmedWeights
-      ? trimmedWeights.split(",").map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n))
+      ? trimmedWeights
+          .split(",")
+          .map((token) => resolveWeightValue(token.trim()))
+          .filter((value) => Number.isFinite(value))
       : [];
     return {
       name: name.trim(),
