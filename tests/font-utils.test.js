@@ -8,6 +8,7 @@ import {
   buildFamilyQuery,
   formatVariantSummary,
   buildFileName,
+  slugifyFontFolder,
   FORMAT_ALIASES,
   FORMAT_EXTENSIONS,
   selectAvailableFormats,
@@ -244,6 +245,17 @@ test("formatVariantSummary and buildFileName produce expected strings", () => {
   assert.equal(summary, "400, 700, 400i");
 
   const fileName = buildFileName("roboto", 400, true, "woff2");
+  assert.equal(fileName, "roboto-400-italic.woff2");
+});
+
+test("slugifyFontFolder normalizes font names safely", () => {
+  assert.equal(slugifyFontFolder("Noto Sans JP"), "noto-sans-jp");
+  assert.equal(slugifyFontFolder("../Weird/Name"), "weird-name");
+  assert.equal(slugifyFontFolder(""), "font");
+});
+
+test("buildFileName sanitizes path traversal attempts", () => {
+  const fileName = buildFileName("../Roboto", "../400", true, "../WOFF2");
   assert.equal(fileName, "roboto-400-italic.woff2");
 });
 

@@ -1,3 +1,4 @@
+import path from "node:path";
 import fs from "fs-extra";
 import axios from "axios";
 import config from "../config/fonts.config.js";
@@ -11,9 +12,11 @@ import {
   buildFamilyQuery,
   extractSourcesFromCss,
   formatVariantSummary,
-  buildFileName
+  buildFileName,
+  slugifyFontFolder
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
+import { resolveSafePath } from "../lib/path-utils.js";
 
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
@@ -109,7 +112,8 @@ function normalizeWeights(font) {
 async function downloadFonts() {
   console.log("Descargando fuentes desde Google Fonts...\n");
 
-  await fs.ensureDir(outputDir);
+  const resolvedOutputDir = path.resolve(outputDir);
+  await fs.ensureDir(resolvedOutputDir);
   const fontOptions = [];
 
   const metadataFetcher = () =>
@@ -154,8 +158,8 @@ async function downloadFonts() {
       continue;
     }
 
-    const folder = name.toLowerCase().replace(/\s+/g, "-");
-    const fontDir = `${outputDir}/${folder}`;
+    const folder = slugifyFontFolder(name);
+    const fontDir = resolveSafePath(resolvedOutputDir, folder);
     await fs.ensureDir(fontDir);
 
     const preparedSources = sources.map((source) => {
@@ -210,7 +214,7 @@ async function downloadFonts() {
 
     for (const source of matchedSources) {
       const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
-      const filePath = `${fontDir}/${fileName}`;
+      const filePath = resolveSafePath(fontDir, fileName);
 
       if (!fs.existsSync(filePath)) {
         debug.log(`${name}: descargando ${source.url} → ${fileName}`);
@@ -244,7 +248,7 @@ export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
     console.log(`\nArchivo de opciones generado: ${optionsFilePath}`);
   }
 
-  console.log(`\nDescarga completada. Archivos guardados en ${outputDir}`);
+  console.log(`\nDescarga completada. Archivos guardados en ${resolvedOutputDir}`);
 }
 
 downloadFonts().catch((err) => console.error("Error:", err));

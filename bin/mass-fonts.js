@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import path from "node:path";
 import fs from "fs-extra";
 import axios from "axios";
 import { Command } from "commander";
@@ -12,9 +13,11 @@ import {
   buildFamilyQuery,
   extractSourcesFromCss,
   formatVariantSummary,
-  buildFileName
+  buildFileName,
+  slugifyFontFolder
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
+import { resolveSafePath } from "../lib/path-utils.js";
 
 const program = new Command();
 
@@ -65,7 +68,8 @@ async function getFontCss(familyQuery, subset) {
 }
 
 async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
-  await fs.ensureDir(outputDir);
+  const resolvedOutputDir = path.resolve(outputDir);
+  await fs.ensureDir(resolvedOutputDir);
   const fontOptions = [];
 
   console.log("Descargando fuentes desde Google Fonts...\n");
@@ -109,8 +113,8 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
       continue;
     }
 
-    const folder = name.toLowerCase().replace(/\s+/g, "-");
-    const fontDir = `${outputDir}/${folder}`;
+    const folder = slugifyFontFolder(name);
+    const fontDir = resolveSafePath(resolvedOutputDir, folder);
     await fs.ensureDir(fontDir);
 
     const preparedSources = sources.map((source) => {
@@ -167,7 +171,7 @@ async function downloadFonts(fonts, outputDir, subset, tsFile, formats, debug) {
 
     for (const source of matchedSources) {
       const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
-      const filePath = `${fontDir}/${fileName}`;
+      const filePath = resolveSafePath(fontDir, fileName);
       if (!fileNames.includes(fileName)) {
         fileNames.push(fileName);
       }
@@ -194,7 +198,7 @@ export const FONT_OPTIONS = ${JSON.stringify(fontOptions, null, 2)};
     console.log(`\nArchivo de opciones generado: ${tsFile}`);
   }
 
-  console.log(`\nDescarga completada. Archivos guardados en ${outputDir}`);
+    console.log(`\nDescarga completada. Archivos guardados en ${resolvedOutputDir}`);
 }
 
 const fonts = parseFonts(options.fonts, Boolean(options.all));
