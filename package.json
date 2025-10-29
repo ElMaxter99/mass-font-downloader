@@ -1,6 +1,6 @@
 {
   "name": "mass-font-downloader",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Script para descargar y organizar fuentes de Google Fonts de forma masiva (sin dependencias externas)",
   "type": "module",
   "main": "scripts/download-fonts.js",
@@ -17,5 +17,9 @@
     "axios": "1.7.2",
     "fs-extra": "11.2.0",
     "commander": "12.1.0"
+  },
+  "private": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   }
 }
