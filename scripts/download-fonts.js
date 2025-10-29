@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "fs-extra";
 import axios from "axios";
+import { Command } from "commander";
 import config from "../config/fonts.config.js";
 
 import {
@@ -13,14 +14,44 @@ import {
   extractSourcesFromCss,
   formatVariantSummary,
   buildFileName,
-  slugifyFontFolder
+  slugifyFontFolder,
+  resolveWeightValue,
+  resolveWeightOverrides
 } from "../lib/font-utils.js";
 import { createDebugLogger } from "../lib/debug.js";
 import { resolveSafePath } from "../lib/path-utils.js";
 
+const cli = new Command();
+
+cli
+  .allowUnknownOption(false)
+  .option(
+    "--weights <weights>",
+    "Sobrescribe los pesos para todas las familias (ej: 'regular,semibold,bold')"
+  )
+  .option(
+    "--all",
+    "Ignora los pesos configurados y descarga todas las variantes disponibles"
+  )
+  .parse(process.argv);
+
+const cliOptions = cli.opts();
+
+const {
+  overrideWeights,
+  forceAllVariants
+} = resolveWeightOverrides(cliOptions.weights, cliOptions.all);
+
 const defaultFormats = normalizeFormats(config.formats ?? FALLBACK_FORMATS);
 
-const { fonts, subsets, outputDir, generateOptionsFile, optionsFilePath } = config;
+const {
+  fonts,
+  subsets,
+  outputDir,
+  generateOptionsFile,
+  optionsFilePath,
+  fileNameOptions
+} = config;
 const GOOGLE_FONTS_API = "https://fonts.googleapis.com/css2";
 const DEFAULT_HEADERS = {
   "User-Agent":
@@ -74,6 +105,8 @@ async function getFontCss(familyQuery, subsets) {
 }
 
 function shouldDownloadAll(font) {
+  if (forceAllVariants) return true;
+  if (overrideWeights?.length) return false;
   if (font?.downloadAllVariants || font?.all === true) return true;
   if (typeof font?.weights === "string") {
     const token = font.weights.trim().toLowerCase();
@@ -85,28 +118,32 @@ function shouldDownloadAll(font) {
 }
 
 function normalizeWeights(font) {
+  if (forceAllVariants) {
+    return [];
+  }
+
+  if (overrideWeights?.length) {
+    return overrideWeights;
+  }
+
   if (shouldDownloadAll(font)) {
     return [];
   }
 
   const { weights } = font || {};
   if (!weights) return [400];
-  if (Array.isArray(weights)) {
-    const sanitized = weights
-      .map((value) => parseInt(value, 10))
-      .filter((value) => Number.isFinite(value));
-    return sanitized.length ? sanitized : [400];
-  }
 
-  if (typeof weights === "string") {
-    const parts = weights
-      .split(",")
-      .map((value) => parseInt(value.trim(), 10))
-      .filter((value) => Number.isFinite(value));
-    return parts.length ? parts : [400];
-  }
+  const raw = Array.isArray(weights)
+    ? weights
+    : typeof weights === "string"
+      ? weights.split(",").map((token) => token.trim())
+      : [weights];
 
-  return [400];
+  const parsed = raw
+    .map((value) => resolveWeightValue(value))
+    .filter((value) => Number.isFinite(value));
+
+  return parsed.length ? parsed : [400];
 }
 
 async function downloadFonts() {
@@ -213,7 +250,13 @@ async function downloadFonts() {
     const fileNames = [];
 
     for (const source of matchedSources) {
-      const fileName = buildFileName(folder, source.weight, source.italic, source.extension);
+      const fileName = buildFileName(
+        folder,
+        source.weight,
+        source.italic,
+        source.extension,
+        fileNameOptions
+      );
       const filePath = resolveSafePath(fontDir, fileName);
 
       if (!fs.existsSync(filePath)) {

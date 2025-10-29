@@ -10,7 +10,8 @@ Descarga, renombra y organiza tipografías de Google Fonts a escala sin depender
 ## 🧩 Características
 
 - ✅ Descarga masiva de familias, pesos y estilos directamente desde Google Fonts.
-- 🧭 Renombrado consistente de archivos usando el patrón `<familia>-<peso>(-italic).<ext>`.
+- 🧭 Renombrado consistente de archivos con patrón configurable (por defecto `<familia>-<peso>(-italic).<ext>`).
+- 🎯 Nomenclatura personalizable (`Roboto-Regular.ttf`, `jetbrains-mono-700.woff2`, etc.) mediante `fileNameOptions`.
 - 🗂️ Organización automática por carpetas (`output/fonts/<familia>`).
 - 🧾 Generación opcional de un `font-options.ts` con metadata lista para tus componentes.
 - 🛠️ Configuración flexible mediante archivo (`config/fonts.config.js`) o CLI (`bin/mass-fonts.js`).
@@ -41,11 +42,26 @@ npm start
 
 Los archivos se guardarán en el directorio definido en `config/fonts.config.js` (por defecto `output/fonts`). Si has habilitado `generateOptionsFile`, también se producirá `font-options.ts` con el arreglo `FONT_OPTIONS` para consumirlo en tus apps.
 
+### Sobrescribir pesos sin tocar la configuración
+
+Si quieres reutilizar la lista de familias del config pero descargar únicamente ciertos pesos (por ejemplo `Regular`, `SemiBold` y `Bold`), pásalos como bandera al script oficial:
+
+```bash
+# Solo Regular, SemiBold y Bold para todas las familias del config
+npm run download -- --weights regular,semibold,bold
+
+# Para forzar todas las variantes disponibles e ignorar los pesos definidos en el config
+npm run download -- --all
+```
+
+La bandera `--weights` acepta valores numéricos y alias textuales (`regular`, `medium`, `semibold`, `bold`, `black`, etc.). El patrón definido en `fileNameOptions` seguirá aplicándose, por lo que obtendrás nombres como `Roboto-Regular.woff2` o `Inter-SemiBold.woff2` sin tocar el archivo de configuración.
+
 ## ⚙️ Configuración por archivo
 
 1. Edita `config/fonts.config.js` y ajusta las propiedades:
    - `fonts`: familias a descargar. Define pesos con arrays (`weights: [400, 700]`) o usa `"all"`/`downloadAllVariants: true` para traer todas las combinaciones, incluyendo itálicas.
    - `formats`: formatos globales (entre `woff2`, `woff`, `ttf`). Cada familia puede sobrescribirlos.
+   - `fileNameOptions`: personaliza la nomenclatura final (`familyCase`, `weightCase`, sufijo de itálicas, etc.). Usa `weightNaming: "text"` para transformar `400` en `Regular` y conseguir archivos como `Roboto-Regular.ttf`.
    - `subsets`: subconjuntos de caracteres (`latin`, `latin-ext`, etc.).
    - `outputDir`: carpeta raíz de salida.
    - `generateOptionsFile` y `optionsFilePath`: controlan la creación de `font-options.ts`.
@@ -65,19 +81,34 @@ npm run cli -- --fonts "Roboto:400,700;Poppins:400" --output "output/fonts" --ts
 npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
 ```
 
+Si ejecutas la CLI dentro de un proyecto que tenga `config/fonts.config.js`, puedes omitir `--fonts`
+para reutilizar todas las familias, formatos y nomenclatura definidas allí. Por ejemplo:
+
+```bash
+npx mass-fonts --all --output "output/fonts"
+```
+
+También puedes apuntar a otro archivo con `--config ./mi-config.js`.
+
 ### Parámetros principales
 
 | Opción | Descripción | Valor por defecto |
 | --- | --- | --- |
-| `-f, --fonts <fonts>` | Familias y pesos separados por `;` y `,` (obligatorio). | — |
-| `-o, --output <dir>` | Carpeta raíz donde se guardarán las fuentes. | `output/fonts` |
-| `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | — |
-| `--subset <subset>` | Subconjunto de caracteres (`latin`, `latin-ext`, ...). | `latin` |
-| `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `woff2` |
+| `-f, --fonts <fonts>` | Familias y pesos separados por `;` y `,` (opcional si hay config). | — |
+| `-o, --output <dir>` | Carpeta raíz donde se guardarán las fuentes. | `output/fonts` o `config.outputDir` |
+| `--ts <file>` | Ruta del archivo `font-options.ts` a generar. | Config o — |
+| `--subset <subset>` | Subconjunto(s) de caracteres (`latin`, `latin-ext`, ...). | `latin` o `config.subsets` |
+| `--formats <formats>` | Formatos separados por coma (`woff2`, `woff`, `ttf`). | `config.formats` o `woff2` |
+| `--weights <weights>` | Sobrescribe los pesos para todas las familias (`regular,semibold,bold`). | — |
+| `--config <file>` | Ruta del archivo de configuración a reutilizar. | `config/fonts.config.js` si existe |
 | `--all` | Descarga todas las variantes disponibles para cada familia. | `false` |
 | `--debug` | Muestra logs detallados de la petición y cada descarga. | `false` |
 
 > Consejo: combina `--debug` con la variable `MASS_FONTS_DEBUG=1` para inspeccionar respuestas crudas en pipelines CI.
+
+Los pesos pueden declararse tanto en formato numérico (`400`, `500`, `700`) como textual (`regular`, `medium`, `semibold`, `bold`, `black`).
+La opción `--weights` acepta los mismos alias y, cuando se usa junto con `--config` (o el archivo por defecto), reemplaza los pesos definidos allí.
+La opción `--all` ignora la lista explícita y trae todas las variantes publicadas por Google Fonts (incluyendo itálicas cuando existan).
 
 ## 📁 Estructura de salida
 
@@ -85,13 +116,13 @@ npx mass-fonts --fonts "Inter:all" --all --output "output/fonts"
 output/
 └── fonts/
     ├── roboto/
-    │   ├── roboto-400.woff2
-    │   ├── roboto-400-italic.woff2
-    │   └── roboto-700.woff2
+    │   ├── Roboto-Regular.woff2
+    │   ├── Roboto-RegularItalic.woff2
+    │   └── Roboto-Bold.woff2
     └── poppins/
-        ├── poppins-400.woff2
-        ├── poppins-600.woff2
-        └── poppins-700.woff2
+        ├── Poppins-Regular.woff2
+        ├── Poppins-SemiBold.woff2
+        └── Poppins-Bold.woff2
 ```
 
 Si `generateOptionsFile` está activo, se producirá un `font-options.ts` similar a:
@@ -101,7 +132,7 @@ export const FONT_OPTIONS = [
   {
     name: 'Roboto',
     folder: 'roboto',
-    files: ['roboto-400.woff2', 'roboto-400-italic.woff2', 'roboto-700.woff2']
+    files: ['Roboto-Regular.woff2', 'Roboto-RegularItalic.woff2', 'Roboto-Bold.woff2']
   }
 ];
 ```

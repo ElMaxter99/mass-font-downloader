@@ -21,8 +21,25 @@ export default {
   formats: DEFAULT_FORMATS,
 
   /**
+   * Opciones para personalizar el nombre de los archivos descargados.
+   * Con la configuración actual obtendrás archivos como `Roboto-Regular.woff2`.
+   * Cambia `formats` a `['ttf']` si prefieres contenedores `.ttf` manteniendo el mismo patrón.
+   */
+  fileNameOptions: {
+    familyCase: "pascal",
+    weightCase: "pascal",
+    italicCase: "pascal",
+    separator: "-",
+    italicSeparator: "",
+    italicSuffix: "Italic",
+    extensionCase: "lower",
+    weightNaming: "text"
+  },
+
+  /**
    * Listado de familias a descargar. El script solo lee `name` y `weights`,
    * pero aquí dejamos ejemplos de metadatos útiles para documentar decisiones.
+   * Los pesos aceptan números (`400`) o alias (`regular`, `medium`, `semibold`, `bold`, etc.).
    */
   fonts: [
     {
